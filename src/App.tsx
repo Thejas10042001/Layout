@@ -34,6 +34,7 @@ import {
 import mermaid from 'mermaid';
 import { analyzeTranscript, performOCR, validateDocumentMatch } from './services/geminiService';
 import { cn } from './lib/utils';
+import mammoth from 'mammoth';
 
 mermaid.initialize({
   startOnLoad: true,
@@ -165,34 +166,49 @@ export default function App() {
     setDocumentText('');
 
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const base64 = (reader.result as string).split(',')[1];
-          const extractedText = await performOCR(base64, file.type);
-          
-          if (!extractedText || extractedText.trim().length === 0) {
-            throw new Error('No text could be extracted from this document.');
-          }
-          
-          setDocumentText(extractedText);
-        } catch (err: any) {
-          console.error(err);
-          setOcrError(
-            `OCR Extraction Failed: ${err.message || 'Unknown error'}. \n\nPossible reasons:\n• Unsupported or corrupt file format\n• Image quality is too low, blurry, or low-contrast\n• Document is password protected\n• File size is too large for processing`
-          );
-        } finally {
-          setIsOcrLoading(false);
+      if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.docx')) {
+        // Handle Word Document (.docx)
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        const extractedText = result.value;
+        
+        if (!extractedText || extractedText.trim().length === 0) {
+          throw new Error('No text could be extracted from this Word document.');
         }
-      };
-      reader.onerror = () => {
-        setOcrError('Failed to read file. Please check if the file is accessible.');
+        
+        setDocumentText(extractedText);
         setIsOcrLoading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
+      } else {
+        // Handle Images and PDFs via Gemini OCR
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const base64 = (reader.result as string).split(',')[1];
+            const extractedText = await performOCR(base64, file.type);
+            
+            if (!extractedText || extractedText.trim().length === 0) {
+              throw new Error('No text could be extracted from this document.');
+            }
+            
+            setDocumentText(extractedText);
+          } catch (err: any) {
+            console.error(err);
+            setOcrError(
+              `OCR Extraction Failed: ${err.message || 'Unknown error'}. \n\nPossible reasons:\n• Unsupported or corrupt file format\n• Image quality is too low, blurry, or low-contrast\n• Document is password protected\n• File size is too large for processing`
+            );
+          } finally {
+            setIsOcrLoading(false);
+          }
+        };
+        reader.onerror = () => {
+          setOcrError('Failed to read file. Please check if the file is accessible.');
+          setIsOcrLoading(false);
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch (err: any) {
       console.error(err);
-      setOcrError('An unexpected error occurred during file selection.');
+      setOcrError(`An unexpected error occurred: ${err.message || 'Unknown error'}`);
       setIsOcrLoading(false);
     }
   };
@@ -292,7 +308,7 @@ export default function App() {
                     </div>
                     <label className="cursor-pointer bg-black text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-black/80 transition-all">
                       Upload
-                      <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
+                      <input type="file" className="hidden" accept="image/*,application/pdf,.docx" onChange={handleFileUpload} />
                     </label>
                   </>
                 )}
