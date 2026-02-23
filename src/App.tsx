@@ -679,8 +679,17 @@ export default function App() {
                               <div className="md:col-span-2 space-y-4">
                                 <div>
                                   <h4 className="text-[9px] font-bold uppercase tracking-widest text-black/30 mb-1">{rec.architecture_layer}</h4>
-                                  <h5 className="font-bold text-base mb-2">{rec.solution_name}</h5>
-                                  <p className="text-xs text-black/60 leading-relaxed">{rec.why_it_fits}</p>
+                                  <h5 className="font-bold text-base mb-3">{rec.solution_name}</h5>
+                                  <div className="space-y-3">
+                                    <div>
+                                      <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 mb-1">Strategic Fit</p>
+                                      <p className="text-xs text-black/70 leading-relaxed">{rec.why_it_fits}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 mb-1">Technical Rationale</p>
+                                      <p className="text-xs text-black/60 leading-relaxed italic">{rec.technical_reason}</p>
+                                    </div>
+                                  </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5">
                                   <div>
