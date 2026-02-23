@@ -633,12 +633,23 @@ export default function App() {
                     </section>
 
                     {/* Part 3: Technical Architecture & Visualization */}
-                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
-                      <div className="flex items-center gap-2 text-black/40">
-                        <Network className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">03. Architectural Blueprint</span>
+                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6 group relative">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-black/40">
+                          <Network className="w-4 h-4" />
+                          <span className="text-[11px] font-bold uppercase tracking-widest">03. Architectural Blueprint</span>
+                        </div>
+                        <button 
+                          onClick={() => setSelectedDiagram({ chart: result?.diagrams.tech_architecture_diagram || '', title: 'Architectural Blueprint' })}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-black/5 rounded-lg text-black/40 hover:text-black"
+                        >
+                          <Maximize2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                      <div className="bg-black/5 rounded-2xl p-4 overflow-hidden">
+                      <div 
+                        className="bg-black/5 rounded-2xl p-4 overflow-hidden cursor-zoom-in hover:bg-black/[0.07] transition-colors"
+                        onClick={() => setSelectedDiagram({ chart: result?.diagrams.tech_architecture_diagram || '', title: 'Architectural Blueprint' })}
+                      >
                         <Mermaid chart={result?.diagrams.tech_architecture_diagram || ''} />
                       </div>
                       <div className="flex flex-wrap gap-2">
