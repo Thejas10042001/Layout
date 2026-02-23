@@ -57,11 +57,13 @@ mermaid.initialize({
 
 const Mermaid = ({ chart }: { chart: string }) => {
   const ref = React.useRef<HTMLDivElement>(null);
+  const id = React.useId().replace(/:/g, '');
 
   React.useEffect(() => {
     const renderChart = async () => {
       if (ref.current && chart) {
         try {
+          ref.current.innerHTML = chart;
           ref.current.removeAttribute('data-processed');
           await mermaid.run({
             nodes: [ref.current],
@@ -75,7 +77,11 @@ const Mermaid = ({ chart }: { chart: string }) => {
   }, [chart]);
 
   return (
-    <div className="mermaid bg-white p-4 rounded-xl overflow-x-auto min-h-[200px] flex items-center justify-center" ref={ref}>
+    <div 
+      id={`mermaid-${id}`}
+      className="mermaid w-full h-full flex items-center justify-center [&>svg]:max-w-full [&>svg]:h-auto" 
+      ref={ref}
+    >
       {chart}
     </div>
   );
@@ -186,6 +192,8 @@ export default function App() {
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [selectedDiagram, setSelectedDiagram] = useState<{ chart: string; title: string } | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   const loadSample = () => setTranscript(SAMPLE_TRANSCRIPT);
   const loadSampleDoc = () => setDocumentText(SAMPLE_DOCUMENT);
@@ -252,25 +260,64 @@ export default function App() {
     setIsAnalyzing(true);
     setError(null);
     setValidationError(null);
+    setProgress(0);
+    setLoadingMessage('Initializing cognitive engine...');
+
+    const messages = [
+      'Ingesting transcript data...',
+      'Analyzing stakeholder requirements...',
+      'Validating document context...',
+      'Mapping architectural layers...',
+      'Identifying core business drivers...',
+      'Calculating financial ROI and OpEx...',
+      'Synthesizing executive strategy...',
+      'Generating technical visualizations...',
+      'Finalizing executive-ready report...'
+    ];
+
+    let messageIndex = 0;
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 95) return prev;
+        const increment = Math.random() * 5;
+        const next = Math.min(prev + increment, 95);
+        
+        // Update message every ~15%
+        if (Math.floor(next / 12) > messageIndex && messageIndex < messages.length - 1) {
+          messageIndex++;
+          setLoadingMessage(messages[messageIndex]);
+        }
+        
+        return next;
+      });
+    }, 400);
 
     try {
       // Validation Logic
       if (documentText.trim()) {
+        setLoadingMessage('Cross-referencing document context...');
         const validation = await validateDocumentMatch(documentText, transcript);
         if (!validation.matches) {
           setValidationError(validation.reason || "Missing document context. Please provide a document that matches the transcript's company/project.");
           setIsAnalyzing(false);
+          clearInterval(progressInterval);
           return;
         }
       }
 
       const data = await analyzeTranscript(transcript, documentText);
-      setResult(data);
+      setProgress(100);
+      setLoadingMessage('Analysis complete.');
+      setTimeout(() => {
+        setResult(data);
+        setIsAnalyzing(false);
+      }, 500);
     } catch (err) {
       console.error(err);
       setError('Failed to analyze transcript. Please check your API key and try again.');
-    } finally {
       setIsAnalyzing(false);
+    } finally {
+      clearInterval(progressInterval);
     }
   };
 
@@ -457,13 +504,64 @@ export default function App() {
                 </motion.div>
               ) : isAnalyzing ? (
                 <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-8"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center justify-center min-h-[600px] space-y-12"
                 >
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="animate-pulse bg-black/5 rounded-3xl h-[400px]" />
-                  ))}
+                  <div className="relative w-32 h-32">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle
+                        cx="64"
+                        cy="64"
+                        r="60"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="transparent"
+                        className="text-black/5"
+                      />
+                      <motion.circle
+                        cx="64"
+                        cy="64"
+                        r="60"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="transparent"
+                        strokeDasharray="377"
+                        animate={{ strokeDashoffset: 377 - (377 * progress) / 100 }}
+                        className="text-red-600"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl font-black tracking-tighter">{Math.round(progress)}%</span>
+                    </div>
+                  </div>
+
+                  <div className="text-center space-y-4 max-w-md">
+                    <h3 className="text-xl font-black tracking-tight uppercase italic">Synthesizing Intelligence</h3>
+                    <div className="h-1 w-64 bg-black/5 rounded-full overflow-hidden mx-auto">
+                      <motion.div 
+                        className="h-full bg-red-600"
+                        animate={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <AnimatePresence mode="wait">
+                      <motion.p 
+                        key={loadingMessage}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="text-sm font-bold text-black/40 uppercase tracking-widest min-h-[1.5em]"
+                      >
+                        {loadingMessage}
+                      </motion.p>
+                    </AnimatePresence>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-8 w-full max-w-2xl opacity-20">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-32 bg-black/5 rounded-2xl animate-pulse" />
+                    ))}
+                  </div>
                 </motion.div>
               ) : (
                 <motion.div 
