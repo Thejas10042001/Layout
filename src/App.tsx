@@ -55,15 +55,23 @@ mermaid.initialize({
   securityLevel: 'loose',
 });
 
+const cleanMermaid = (chart: string) => {
+  return chart
+    .replace(/```mermaid/g, '')
+    .replace(/```/g, '')
+    .trim();
+};
+
 const Mermaid = ({ chart }: { chart: string }) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const id = React.useId().replace(/:/g, '');
 
   React.useEffect(() => {
     const renderChart = async () => {
-      if (ref.current && chart) {
+      const cleanedChart = cleanMermaid(chart);
+      if (ref.current && cleanedChart) {
         try {
-          ref.current.innerHTML = chart;
+          ref.current.innerHTML = cleanedChart;
           ref.current.removeAttribute('data-processed');
           await mermaid.run({
             nodes: [ref.current],
@@ -82,7 +90,7 @@ const Mermaid = ({ chart }: { chart: string }) => {
       className="mermaid w-full h-full flex items-center justify-center [&>svg]:max-w-full [&>svg]:h-auto" 
       ref={ref}
     >
-      {chart}
+      {cleanMermaid(chart)}
     </div>
   );
 };
