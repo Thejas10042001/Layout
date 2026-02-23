@@ -204,7 +204,12 @@ Strategic Requirements:
 4. Architectural Layering: Map recommendations to Foundation, Identity, Network, Security, Storage, Compute, and AI layers.
 5. Use Case Alignment: Identify at least 5 distinct, high-impact use cases from the transcript. Format each using the STAR (Situation, Task, Action, Result) or SPAR framework as appropriate, but prioritize STAR for at least 2 of them. Each use case must include a specific "industry_relevance" scenario.
 6. Visual Strategy: Provide highly detailed Mermaid.js code for a Use Case diagram and a System Technical Architecture diagram. 
-   - The Use Case diagram must be comprehensive, illustrating actors, detailed use cases, and relationships (include <<include>> or <<extend>> where appropriate). Use a professional theme.
+   - The Use Case diagram must be a professional-grade representation of the system's functional requirements. It must include:
+     *   System Boundary: Explicitly define the system boundary using a rectangle.
+     *   Actors: Identify primary actors (e.g., Business Stakeholders, End Users) and secondary/system actors (e.g., AWS IAM, Monitoring Services, External APIs).
+     *   Comprehensive Use Cases: Include at least 6-8 specific use cases derived from the transcript (e.g., "Analyze Claims Data", "Automate Fraud Detection", "Manage Zero Trust Access", "Monitor System Health").
+     *   Relationships: Use standard UML relationships including associations, <<include>> for mandatory sub-processes, and <<extend>> for optional or conditional behaviors.
+     *   Styling: Apply a clean, professional Mermaid theme (e.g., 'neutral' or 'base') with distinct colors for actors and use cases.
    - The System Technical Architecture diagram must be a detailed 'C4-style' or 'Block' diagram. It should visually represent the proposed cloud modernization strategy, showing the different architectural layers (Foundation, Identity, Network, Security, Storage, Compute, AI) as subgraphs or distinct clusters. Use specific AWS service icons/names and show data flow directions clearly. Ensure the diagram is visually balanced and scannable.
 7. Pricing & Pilot: Include specific, actionable AWS monthly pricing estimates for each recommendation. The pricing_model should specify typical AWS models (e.g., On-Demand, Reserved Instances, Spot Instances, or Serverless/Pay-as-you-go). The cost_breakdown must detail the calculation logic for all core services involved (e.g., "EC2 t3.medium x 2: $60/mo", "RDS db.t3.small: $45/mo", "S3 1TB: $23/mo"). Provide a measurable pilot project.
 8. Impact Scoring: For each recommendation, provide an "impact_score" (1-100) representing the strategic business value and a "confidence_score" (0.0-1.0) representing our certainty in the solution fit.
