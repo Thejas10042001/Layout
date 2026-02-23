@@ -145,6 +145,22 @@ Data Engineer: We have 40TB of claims data in a legacy SQL Server. It's slow. We
 Architect: So, the goals are: high availability, Zero Trust security, and an AI-ready data platform. Any constraints?
 CTO: We have a hard deadline of 6 months for the pilot because our data center lease is up. And we need to keep monthly OpEx under $20k for the initial phase.`;
 
+const SAMPLE_DOCUMENT = `Project: Claims Modernization 2026
+Organization: InsureTech Global
+Technical Environment:
+- Primary App: Java 8 Monolith (Spring 4)
+- Database: Microsoft SQL Server 2014 (40TB)
+- Identity: Local Active Directory / LDAP
+- Infrastructure: Dell PowerEdge Servers (End of Life)
+Compliance Requirements:
+- SOC2 Type II
+- GDPR
+- Data Residency in US-East
+Financial Constraints:
+- Initial Pilot Budget: $120k CapEx, $20k/mo OpEx
+- Target ROI: 24 months
+- Current Downtime Cost: $50k/hr`;
+
 export default function App() {
   const [transcript, setTranscript] = useState('');
   const [documentText, setDocumentText] = useState('');
@@ -156,6 +172,7 @@ export default function App() {
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const loadSample = () => setTranscript(SAMPLE_TRANSCRIPT);
+  const loadSampleDoc = () => setDocumentText(SAMPLE_DOCUMENT);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -272,9 +289,17 @@ export default function App() {
           <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-24">
             {/* Document Upload Section */}
             <section className="space-y-4">
-              <div className="flex items-center gap-2 text-black/40">
-                <Upload className="w-4 h-4" />
-                <span className="text-[11px] font-bold uppercase tracking-widest">Document Context (OCR)</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-black/40">
+                  <Upload className="w-4 h-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-widest">Document Context (OCR)</span>
+                </div>
+                <button 
+                  onClick={loadSampleDoc}
+                  className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black transition-colors"
+                >
+                  Sample Doc
+                </button>
               </div>
               
               <div className={cn(
@@ -564,6 +589,28 @@ export default function App() {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    </section>
+
+                    {/* Architectural Visualizations */}
+                    <section className="space-y-6">
+                      <div className="flex items-center gap-2 text-black/40">
+                        <Network className="w-4 h-4" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest">Architectural Visualizations</span>
+                      </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white border border-black/5 rounded-3xl p-6 shadow-sm space-y-4">
+                          <h5 className="text-[10px] font-bold uppercase tracking-widest text-black/40">Technical Architecture</h5>
+                          <div className="bg-black/5 rounded-2xl p-4 overflow-hidden min-h-[300px] flex items-center justify-center">
+                            <Mermaid chart={result?.diagrams.tech_architecture_diagram || ''} />
+                          </div>
+                        </div>
+                        <div className="bg-white border border-black/5 rounded-3xl p-6 shadow-sm space-y-4">
+                          <h5 className="text-[10px] font-bold uppercase tracking-widest text-black/40">Use Case Diagram</h5>
+                          <div className="bg-black/5 rounded-2xl p-4 overflow-hidden min-h-[300px] flex items-center justify-center">
+                            <Mermaid chart={result?.diagrams.use_case_diagram || ''} />
+                          </div>
+                        </div>
                       </div>
                     </section>
 

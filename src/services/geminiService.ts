@@ -185,7 +185,12 @@ ${documentContext}
         parts: [
           {
             text: `You are a senior enterprise cloud solutions architect and executive technology strategist.
-Analyze the following enterprise discovery call transcript (and optional document context) and produce a concise, action-oriented cloud modernization strategy.
+Analyze the following enterprise discovery call transcript (and optional document context) and produce a detailed, action-oriented cloud modernization strategy.
+Focus specifically on:
+- Key Recommendations: High-impact solutions that solve the core business problems.
+- Architectural Layers: Clear mapping to Foundation, Identity, Network, Security, Storage, Compute, and AI.
+- Use Case Alignment: Real-world scenarios extracted from the text.
+- Financial Implications: Detailed AWS cost estimates and ROI considerations.
 
 ${contextPrompt}Transcript:
 ${transcript}
