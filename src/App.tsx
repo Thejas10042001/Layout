@@ -29,12 +29,24 @@ import {
   Upload,
   FileUp,
   FileCheck,
-  X
+  X,
+  BarChart2
 } from 'lucide-react';
 import mermaid from 'mermaid';
 import { analyzeTranscript, performOCR, validateDocumentMatch } from './services/geminiService';
 import { cn } from './lib/utils';
 import mammoth from 'mammoth';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  Legend,
+  Cell
+} from 'recharts';
 
 mermaid.initialize({
   startOnLoad: true,
@@ -86,10 +98,12 @@ interface AnalysisResult {
     technical_reason: string;
     transcript_reference: string;
     confidence_score: number;
+    impact_score: number;
     pricing_model: string;
     estimated_monthly_cost: string;
     cost_breakdown: string[];
     why_it_fits: string;
+    potential_savings: string;
     complementary_solutions: string[];
   }[];
   matched_use_cases: {
@@ -552,8 +566,103 @@ export default function App() {
                     </section>
                   </div>
 
+                  {/* Part 1.5: Client Pains & Goals */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <section className="bg-red-50/50 border border-red-100 rounded-3xl p-8 space-y-4">
+                      <div className="flex items-center gap-2 text-red-600/60">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest">Detected Pains</span>
+                      </div>
+                      <ul className="space-y-2">
+                        {result?.client_snapshot.detected_pains.map((pain, i) => (
+                          <li key={i} className="flex gap-3 text-xs text-red-900/70">
+                            <div className="w-1.5 h-1.5 bg-red-400 rounded-full shrink-0 mt-1.5" />
+                            {pain}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                    <section className="bg-emerald-50/50 border border-emerald-100 rounded-3xl p-8 space-y-4">
+                      <div className="flex items-center gap-2 text-emerald-600/60">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest">Strategic Goals</span>
+                      </div>
+                      <ul className="space-y-2">
+                        {result?.client_snapshot.detected_goals.map((goal, i) => (
+                          <li key={i} className="flex gap-3 text-xs text-emerald-900/70">
+                            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full shrink-0 mt-1.5" />
+                            {goal}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  </div>
+
                   {/* Detailed Breakdown (Below the 4-part grid) */}
                   <div className="pt-12 border-t border-black/5 space-y-12">
+                    {/* Full Recommendations */}
+                    <section className="space-y-6">
+                      <div className="flex items-center gap-2 text-black/40">
+                        <BarChart2 className="w-4 h-4" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest">Strategic Comparison</span>
+                      </div>
+                      <div className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm h-[400px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={result?.top_recommendations.map(rec => {
+                              const costNum = parseFloat(rec.estimated_monthly_cost.replace(/[^0-9.]/g, '')) || 0;
+                              return {
+                                name: rec.solution_name.length > 20 ? rec.solution_name.substring(0, 20) + '...' : rec.solution_name,
+                                'Confidence %': rec.confidence_score * 100,
+                                'Impact Score': rec.impact_score,
+                                'Monthly Cost ($)': costNum,
+                                fullName: rec.solution_name
+                              };
+                            })}
+                            margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                            <XAxis 
+                              dataKey="name" 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fontSize: 10, fill: '#666' }}
+                              angle={-45}
+                              textAnchor="end"
+                              interval={0}
+                            />
+                            <YAxis 
+                              yAxisId="left"
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fontSize: 10, fill: '#666' }}
+                              domain={[0, 100]}
+                            />
+                            <YAxis 
+                              yAxisId="right"
+                              orientation="right"
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fontSize: 10, fill: '#666' }}
+                            />
+                            <Tooltip 
+                              cursor={{ fill: '#f9f9f9' }}
+                              contentStyle={{ 
+                                borderRadius: '12px', 
+                                border: 'none', 
+                                boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                                fontSize: '12px'
+                              }}
+                            />
+                            <Legend verticalAlign="top" height={36} iconType="circle" />
+                            <Bar yAxisId="left" dataKey="Confidence %" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
+                            <Bar yAxisId="left" dataKey="Impact Score" fill="#000000" radius={[4, 4, 0, 0]} barSize={20} />
+                            <Bar yAxisId="right" dataKey="Monthly Cost ($)" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={20} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </section>
+
                     {/* Full Recommendations */}
                     <section className="space-y-6">
                       <div className="flex items-center gap-2 text-black/40">
@@ -567,10 +676,22 @@ export default function App() {
                               {LAYER_ICONS[rec.architecture_layer] || <ChevronRight className="w-4 h-4" />}
                             </div>
                             <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
-                              <div className="md:col-span-2">
-                                <h4 className="text-[9px] font-bold uppercase tracking-widest text-black/30 mb-1">{rec.architecture_layer}</h4>
-                                <h5 className="font-bold text-base mb-2">{rec.solution_name}</h5>
-                                <p className="text-xs text-black/60 leading-relaxed">{rec.why_it_fits}</p>
+                              <div className="md:col-span-2 space-y-4">
+                                <div>
+                                  <h4 className="text-[9px] font-bold uppercase tracking-widest text-black/30 mb-1">{rec.architecture_layer}</h4>
+                                  <h5 className="font-bold text-base mb-2">{rec.solution_name}</h5>
+                                  <p className="text-xs text-black/60 leading-relaxed">{rec.why_it_fits}</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5">
+                                  <div>
+                                    <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Pricing Model</p>
+                                    <p className="text-[10px] font-medium text-black/70">{rec.pricing_model}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600/50">Potential Savings</p>
+                                    <p className="text-[10px] font-bold text-emerald-700">{rec.potential_savings}</p>
+                                  </div>
+                                </div>
                               </div>
                               <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
                                 <div className="flex justify-between items-center mb-2">
@@ -578,7 +699,7 @@ export default function App() {
                                   <span className="text-xs font-bold text-emerald-700">{rec.estimated_monthly_cost}</span>
                                 </div>
                                 <ul className="space-y-1">
-                                  {rec.cost_breakdown.slice(0, 3).map((item, idx) => (
+                                  {rec.cost_breakdown.map((item, idx) => (
                                     <li key={idx} className="text-[9px] text-emerald-800/60 flex items-center gap-1.5">
                                       <div className="w-1 h-1 bg-emerald-400 rounded-full" />
                                       {item}

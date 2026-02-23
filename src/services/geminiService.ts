@@ -30,13 +30,15 @@ export const ARCHITECT_SCHEMA = {
           technical_reason: { type: Type.STRING },
           transcript_reference: { type: Type.STRING },
           confidence_score: { type: Type.NUMBER },
+          impact_score: { type: Type.NUMBER, description: "Numeric score from 1-100 representing business impact." },
           pricing_model: { type: Type.STRING },
           estimated_monthly_cost: { type: Type.STRING, description: "Specific dollar amount (e.g., $150.00/mo)" },
           cost_breakdown: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Detailed breakdown of costs for AWS services." },
           why_it_fits: { type: Type.STRING },
+          potential_savings: { type: Type.STRING, description: "Estimated monthly savings or ROI impact." },
           complementary_solutions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Cross-sell opportunities." },
         },
-        required: ["solution_name", "architecture_layer", "business_value", "technical_reason", "transcript_reference", "confidence_score", "pricing_model", "estimated_monthly_cost", "cost_breakdown", "why_it_fits", "complementary_solutions"],
+        required: ["solution_name", "architecture_layer", "business_value", "technical_reason", "transcript_reference", "confidence_score", "impact_score", "pricing_model", "estimated_monthly_cost", "cost_breakdown", "why_it_fits", "potential_savings", "complementary_solutions"],
       },
     },
     matched_use_cases: {
@@ -203,6 +205,7 @@ Strategic Requirements:
 5. Use Case Alignment: Identify at least 5 distinct, high-impact use cases from the transcript. Format each using the STAR (Situation, Task, Action, Result) or SPAR framework as appropriate, but prioritize STAR for at least 2 of them. Each use case must include a specific "industry_relevance" scenario.
 6. Visual Strategy: Provide Mermaid.js code for a Use Case diagram and a System Technical Architecture diagram. The Use Case diagram must illustrate key actors (e.g., Client Stakeholders, Cloud Architect, Analysis System) and their interactions with the system. The System Technical Architecture diagram must visually represent the proposed cloud modernization strategy, showing the different architectural layers (Foundation, Identity, Network, Security, Storage, Compute, AI) and key AWS services recommended for each layer.
 7. Pricing & Pilot: Include specific, actionable AWS monthly pricing estimates for each recommendation. The pricing_model should specify typical AWS models (e.g., On-Demand, Reserved Instances, Spot Instances, or Serverless/Pay-as-you-go). The cost_breakdown must detail the calculation logic for all core services involved (e.g., "EC2 t3.medium x 2: $60/mo", "RDS db.t3.small: $45/mo", "S3 1TB: $23/mo"). Provide a measurable pilot project.
+8. Impact Scoring: For each recommendation, provide an "impact_score" (1-100) representing the strategic business value and a "confidence_score" (0.0-1.0) representing our certainty in the solution fit.
 
 Output must be executive-ready: concise, high-impact, and devoid of technical fluff.`,
           },
