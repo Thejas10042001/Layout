@@ -283,22 +283,42 @@ export default function App() {
       'Finalizing executive-ready report...'
     ];
 
-    let messageIndex = 0;
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 95) return prev;
-        const increment = Math.random() * 5;
-        const next = Math.min(prev + increment, 95);
+    const steps = [
+      { to: 12, message: messages[0] },
+      { to: 24, message: messages[1] },
+      { to: 36, message: messages[2] },
+      { to: 48, message: messages[3] },
+      { to: 60, message: messages[4] },
+      { to: 72, message: messages[5] },
+      { to: 84, message: messages[6] },
+      { to: 92, message: messages[7] },
+      { to: 98, message: messages[8] },
+    ];
+
+    let currentProgress = 0;
+    const runProgress = async () => {
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        setLoadingMessage(step.message);
         
-        // Update message every ~15%
-        if (Math.floor(next / 12) > messageIndex && messageIndex < messages.length - 1) {
-          messageIndex++;
-          setLoadingMessage(messages[messageIndex]);
+        // Hold
+        await new Promise(r => setTimeout(r, 400 + Math.random() * 400));
+        
+        // Move to target
+        const target = step.to;
+        const diff = target - currentProgress;
+        const increments = 15;
+        const stepTime = 30 + Math.random() * 40;
+        
+        for(let j = 1; j <= increments; j++) {
+          currentProgress += diff / increments;
+          setProgress(currentProgress);
+          await new Promise(r => setTimeout(r, stepTime));
         }
-        
-        return next;
-      });
-    }, 400);
+      }
+    };
+
+    runProgress();
 
     try {
       // Validation Logic
@@ -308,7 +328,6 @@ export default function App() {
         if (!validation.matches) {
           setValidationError(validation.reason || "Missing document context. Please provide a document that matches the transcript's company/project.");
           setIsAnalyzing(false);
-          clearInterval(progressInterval);
           return;
         }
       }
@@ -325,7 +344,7 @@ export default function App() {
       setError('Failed to analyze transcript. Please check your API key and try again.');
       setIsAnalyzing(false);
     } finally {
-      clearInterval(progressInterval);
+      // Done
     }
   };
 
@@ -516,31 +535,34 @@ export default function App() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex flex-col items-center justify-center min-h-[600px] space-y-12"
                 >
-                  <div className="relative w-32 h-32">
-                    <svg className="w-full h-full transform -rotate-90">
-                      <circle
-                        cx="64"
-                        cy="64"
-                        r="60"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        fill="transparent"
-                        className="text-black/5"
+                  <div className="relative w-48 h-48 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" className="w-32 h-32">
+                      <defs>
+                        <clipPath id="cloud-clip">
+                          <path d="M17.5 19c.5 0 1-.1 1.5-.4 1.5-.7 2.5-2.2 2.5-3.6 0-2-1.5-3.5-3.5-3.5-.2 0-.5 0-.7.1C16.5 8.6 14.5 7 12 7c-2.8 0-5.1 2.1-5.5 4.8-.2-.1-.5-.1-.7-.1-2.2 0-4 1.8-4 4s1.8 4 4 4h11.7z" />
+                        </clipPath>
+                      </defs>
+                      {/* Background Cloud */}
+                      <path 
+                        d="M17.5 19c.5 0 1-.1 1.5-.4 1.5-.7 2.5-2.2 2.5-3.6 0-2-1.5-3.5-3.5-3.5-.2 0-.5 0-.7.1C16.5 8.6 14.5 7 12 7c-2.8 0-5.1 2.1-5.5 4.8-.2-.1-.5-.1-.7-.1-2.2 0-4 1.8-4 4s1.8 4 4 4h11.7z" 
+                        className="fill-black/5 stroke-black/10"
+                        strokeWidth="0.5"
                       />
-                      <motion.circle
-                        cx="64"
-                        cy="64"
-                        r="60"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        fill="transparent"
-                        strokeDasharray="377"
-                        animate={{ strokeDashoffset: 377 - (377 * progress) / 100 }}
-                        className="text-red-600"
-                      />
+                      {/* Filling Cloud */}
+                      <g clipPath="url(#cloud-clip)">
+                        <motion.rect
+                          x="0"
+                          y={24 - (24 * progress / 100)}
+                          width="24"
+                          height="24"
+                          className="fill-red-600"
+                          transition={{ type: 'spring', bounce: 0, duration: 0.5 }}
+                        />
+                      </g>
                     </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-2xl font-black tracking-tighter">{Math.round(progress)}%</span>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pt-4">
+                      <span className="text-3xl font-black tracking-tighter text-black">{Math.round(progress)}%</span>
+                      <Cloud className="w-4 h-4 text-black/20 animate-bounce mt-1" />
                     </div>
                   </div>
 

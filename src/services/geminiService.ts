@@ -204,13 +204,19 @@ Strategic Requirements:
 4. Architectural Layering: Map recommendations to Foundation, Identity, Network, Security, Storage, Compute, and AI layers.
 5. Use Case Alignment: Identify at least 5 distinct, high-impact use cases from the transcript. Format each using the STAR (Situation, Task, Action, Result) or SPAR framework as appropriate, but prioritize STAR for at least 2 of them. Each use case must include a specific "industry_relevance" scenario.
 6. Visual Strategy: Provide highly detailed Mermaid.js code for a Use Case diagram and a System Technical Architecture diagram. 
-   - The Use Case diagram must be rendered using Mermaid 'flowchart TD' syntax (since Mermaid does not have a native 'usecase' type). It must include:
-     *   System Boundary: Use a 'subgraph' named "System Boundary" to enclose all use cases.
-     *   Actors: Represent primary and secondary actors as nodes outside the subgraph (e.g., 'Actor1[Stakeholder]').
-     *   Use Cases: Represent use cases as rounded or stadium-shaped nodes inside the subgraph (e.g., 'UC1([Analyze Claims])').
-     *   Relationships: Use standard lines '---' for associations, and labeled lines '-. <<include>> .->' or '-. <<extend>> .->' for relationships.
-     *   Styling: Use 'style' commands to make Use Case nodes look distinct (e.g., light blue background).
-   - The System Technical Architecture diagram must be a detailed 'C4-style' or 'Block' diagram. It should visually represent the proposed cloud modernization strategy, showing the different architectural layers (Foundation, Identity, Network, Security, Storage, Compute, AI) as subgraphs or distinct clusters. Use specific AWS service icons/names and show data flow directions clearly. Ensure the diagram is visually balanced and scannable.
+   - Use 'flowchart TD' for both diagrams.
+   - For the Use Case diagram:
+     *   Enclose all use cases in a 'subgraph' named "System Boundary".
+     *   Represent Actors as square nodes outside the subgraph (e.g., 'Actor1[Stakeholder]').
+     *   Represent Use Cases as stadium-shaped nodes inside the subgraph (e.g., 'UC1([Analyze Claims])').
+     *   Use standard lines '---' for associations.
+     *   For include/extend relationships, use labeled dotted lines with double quotes for the label (e.g., 'UC1 -. "<<include>>" .-> UC2').
+   - For the System Technical Architecture diagram:
+     *   Use subgraphs to represent architectural layers (Foundation, Identity, Network, Security, Storage, Compute, AI).
+     *   Use specific AWS service names in nodes.
+     *   Use '-->' for data flow.
+     *   Ensure all node labels and subgraph titles are descriptive.
+   - IMPORTANT: Ensure the Mermaid code is valid and does not contain any backticks or unquoted special characters in labels.
 7. Pricing & Pilot: Include specific, actionable AWS monthly pricing estimates for each recommendation. The pricing_model should specify typical AWS models (e.g., On-Demand, Reserved Instances, Spot Instances, or Serverless/Pay-as-you-go). The cost_breakdown must detail the calculation logic for all core services involved (e.g., "EC2 t3.medium x 2: $60/mo", "RDS db.t3.small: $45/mo", "S3 1TB: $23/mo"). Provide a measurable pilot project.
 8. Impact Scoring: For each recommendation, provide an "impact_score" (1-100) representing the strategic business value and a "confidence_score" (0.0-1.0) representing our certainty in the solution fit.
 
