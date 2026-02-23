@@ -30,7 +30,8 @@ import {
   FileUp,
   FileCheck,
   X,
-  BarChart2
+  BarChart2,
+  Maximize2
 } from 'lucide-react';
 import mermaid from 'mermaid';
 import { analyzeTranscript, performOCR, validateDocumentMatch } from './services/geminiService';
@@ -184,6 +185,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [selectedDiagram, setSelectedDiagram] = useState<{ chart: string; title: string } | null>(null);
 
   const loadSample = () => setTranscript(SAMPLE_TRANSCRIPT);
   const loadSampleDoc = () => setDocumentText(SAMPLE_DOCUMENT);
@@ -729,15 +731,37 @@ export default function App() {
                         <span className="text-[11px] font-bold uppercase tracking-widest">Architectural Visualizations</span>
                       </div>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-white border border-black/5 rounded-3xl p-6 shadow-sm space-y-4">
-                          <h5 className="text-[10px] font-bold uppercase tracking-widest text-black/40">Technical Architecture</h5>
-                          <div className="bg-black/5 rounded-2xl p-4 overflow-hidden min-h-[300px] flex items-center justify-center">
+                        <div className="bg-white border border-black/5 rounded-3xl p-6 shadow-sm space-y-4 group relative">
+                          <div className="flex justify-between items-center">
+                            <h5 className="text-[10px] font-bold uppercase tracking-widest text-black/40">Technical Architecture</h5>
+                            <button 
+                              onClick={() => setSelectedDiagram({ chart: result?.diagrams.tech_architecture_diagram || '', title: 'Technical Architecture' })}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-black/5 rounded-lg text-black/40 hover:text-black"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div 
+                            className="bg-black/5 rounded-2xl p-4 overflow-hidden min-h-[300px] flex items-center justify-center cursor-zoom-in hover:bg-black/[0.07] transition-colors"
+                            onClick={() => setSelectedDiagram({ chart: result?.diagrams.tech_architecture_diagram || '', title: 'Technical Architecture' })}
+                          >
                             <Mermaid chart={result?.diagrams.tech_architecture_diagram || ''} />
                           </div>
                         </div>
-                        <div className="bg-white border border-black/5 rounded-3xl p-6 shadow-sm space-y-4">
-                          <h5 className="text-[10px] font-bold uppercase tracking-widest text-black/40">Use Case Diagram</h5>
-                          <div className="bg-black/5 rounded-2xl p-4 overflow-hidden min-h-[300px] flex items-center justify-center">
+                        <div className="bg-white border border-black/5 rounded-3xl p-6 shadow-sm space-y-4 group relative">
+                          <div className="flex justify-between items-center">
+                            <h5 className="text-[10px] font-bold uppercase tracking-widest text-black/40">Use Case Diagram</h5>
+                            <button 
+                              onClick={() => setSelectedDiagram({ chart: result?.diagrams.use_case_diagram || '', title: 'Use Case Diagram' })}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-black/5 rounded-lg text-black/40 hover:text-black"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div 
+                            className="bg-black/5 rounded-2xl p-4 overflow-hidden min-h-[300px] flex items-center justify-center cursor-zoom-in hover:bg-black/[0.07] transition-colors"
+                            onClick={() => setSelectedDiagram({ chart: result?.diagrams.use_case_diagram || '', title: 'Use Case Diagram' })}
+                          >
                             <Mermaid chart={result?.diagrams.use_case_diagram || ''} />
                           </div>
                         </div>
@@ -812,6 +836,44 @@ export default function App() {
           </div>
         </div>
       </main>
+      {/* Diagram Modal */}
+      <AnimatePresence>
+        {selectedDiagram && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-12 bg-black/80 backdrop-blur-sm"
+            onClick={() => setSelectedDiagram(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl w-full max-w-6xl max-h-full overflow-hidden flex flex-col shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-black/5 flex justify-between items-center">
+                <h3 className="font-bold text-lg">{selectedDiagram.title}</h3>
+                <button 
+                  onClick={() => setSelectedDiagram(null)}
+                  className="p-2 hover:bg-black/5 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-8 bg-black/[0.02] flex items-center justify-center">
+                <div className="w-full h-full min-h-[60vh]">
+                  <Mermaid chart={selectedDiagram.chart} />
+                </div>
+              </div>
+              <div className="p-4 bg-black/5 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-black/40">Click outside or press X to close</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
