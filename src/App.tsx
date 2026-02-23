@@ -533,7 +533,7 @@ export default function App() {
                         <span className="text-[11px] font-bold uppercase tracking-widest">04. Solution & Financials</span>
                       </div>
                       <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                        {result?.top_recommendations.slice(0, 2).map((rec, i) => (
+                        {result?.top_recommendations.slice(0, 3).map((rec, i) => (
                           <div key={i} className="p-4 bg-black/5 rounded-2xl space-y-3">
                             <div className="flex justify-between items-start">
                               <h5 className="font-bold text-sm">{rec.solution_name}</h5>
@@ -628,7 +628,29 @@ export default function App() {
                                 <h5 className="font-bold text-sm">{uc.scenario_name}</h5>
                                 <span className="text-[8px] font-bold px-2 py-0.5 bg-black text-white rounded-full">{uc.format}</span>
                               </div>
-                              <p className="text-[11px] text-black/60 leading-relaxed"><span className="font-bold text-black/80">Result:</span> {uc.result}</p>
+                              <div className="grid grid-cols-1 gap-3">
+                                <div className="space-y-1">
+                                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Situation</p>
+                                  <p className="text-[11px] text-black/70 leading-relaxed">{uc.situation}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Task</p>
+                                  <p className="text-[11px] text-black/70 leading-relaxed">{uc.problem_or_task}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Action</p>
+                                  <p className="text-[11px] text-black/70 leading-relaxed">{uc.action}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Result</p>
+                                  <p className="text-[11px] text-emerald-700 font-medium leading-relaxed">{uc.result}</p>
+                                </div>
+                              </div>
+                              {uc.industry_relevance && (
+                                <div className="pt-3 border-t border-black/5">
+                                  <p className="text-[10px] italic text-black/40">{uc.industry_relevance}</p>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
