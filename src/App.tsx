@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Cloud, 
@@ -20,18 +20,24 @@ import {
   Target, 
   Users, 
   Rocket,
-  ChevronRight,
-  Loader2,
-  CheckCircle2,
-  Quote,
-  DollarSign,
-  Activity,
-  Upload,
-  FileUp,
+  Mic,
+  History,
+  Play,
+  Square,
+  Volume2,
+  Trash2,
+  Clock,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
   FileCheck,
   X,
   BarChart2,
-  Maximize2
+  Maximize2,
+  Upload,
+  Loader2,
+  DollarSign,
+  Activity
 } from 'lucide-react';
 import mermaid from 'mermaid';
 import { analyzeTranscript, performOCR, validateDocumentMatch } from './services/geminiService';
@@ -99,58 +105,54 @@ interface AnalysisResult {
   client_snapshot: {
     organization_type: string;
     technical_maturity_level: string;
-    top_priorities: string[];
-    constraints: string[];
-    risk_factors: string[];
-    detected_pains: string[];
-    detected_goals: string[];
   };
-  core_drivers: string[];
+  recommendation: string;
   top_recommendations: {
     solution_name: string;
-    architecture_layer: string;
-    business_value: string;
-    technical_reason: string;
-    transcript_reference: string;
-    confidence_score: number;
-    impact_score: number;
-    pricing_model: string;
     estimated_monthly_cost: string;
     cost_breakdown: string[];
-    why_it_fits: string;
-    potential_savings: string;
-    complementary_solutions: string[];
+    business_value: string;
+  }[];
+  total_cost_of_ownership: {
+    total_monthly_estimate: string;
+    one_time_setup_cost: string;
+    three_year_roi: string;
+    cost_optimization_strategy: string;
+  };
+  solution_set: {
+    category: string;
+    solutions: string[];
+  }[];
+  client_references: {
+    industry: string;
+    company_size: string;
+    success_story: string;
   }[];
   matched_use_cases: {
-    scenario_name: string;
-    format: string;
-    situation: string;
-    problem_or_task: string;
-    action: string;
-    result: string;
-    industry_relevance: string;
+    title: string;
+    client_statement: string;
+    who_where: string;
+    current_workflow: string;
+    desired_workflow: string;
+    data_integrations: string;
+    value_metrics: string;
+    constraints_risks: string;
+    acceptance_criteria: string[];
+    priority_timeline: string;
   }[];
   diagrams: {
     use_case_diagram: string;
     tech_architecture_diagram: string;
-  };
-  recommended_pilot: {
-    name: string;
-    why_this_pilot: string;
-    high_level_architecture: string[];
-    measurable_success_metrics: string[];
-  };
-  implementation_phases: {
-    phase_name: string;
-    focus: string;
-    expected_outcome: string;
-  }[];
-  next_steps: {
-    demo_direction: string;
-    follow_up_focus: string;
-    validation_questions: string[];
+    architecture_definition: string;
   };
   executive_summary: string;
+}
+
+interface HistoryItem {
+  id: string;
+  timestamp: number;
+  transcript: string;
+  result: AnalysisResult;
 }
 
 const LAYER_ICONS: Record<string, React.ReactNode> = {
@@ -193,6 +195,15 @@ Financial Constraints:
 export default function App() {
   const [transcript, setTranscript] = useState('');
   const [documentText, setDocumentText] = useState('');
+  const [inputMode, setInputMode] = useState<'paste' | 'live'>('paste');
+  const [livePerson1, setLivePerson1] = useState('');
+  const [livePerson2, setLivePerson2] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>(() => {
+    const saved = localStorage.getItem('architect_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showHistory, setShowHistory] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -203,7 +214,18 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('');
 
-  const loadSample = () => setTranscript(SAMPLE_TRANSCRIPT);
+  useEffect(() => {
+    localStorage.setItem('architect_history', JSON.stringify(history));
+  }, [history]);
+
+  const loadSample = () => {
+    if (inputMode === 'paste') {
+      setTranscript(SAMPLE_TRANSCRIPT);
+    } else {
+      setLivePerson1("We're seeing 15-minute downtime windows every Tuesday during deployments. It's costing us about $50k per hour.");
+      setLivePerson2("Understood. AWS can help modernize this with a serverless architecture to eliminate that downtime.");
+    }
+  };
   const loadSampleDoc = () => setDocumentText(SAMPLE_DOCUMENT);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -263,7 +285,11 @@ export default function App() {
   };
 
   const handleAnalyze = async () => {
-    if (!transcript.trim()) return;
+    const finalTranscript = inputMode === 'paste' 
+      ? transcript 
+      : `Customer: ${livePerson1}\nArchitect: ${livePerson2}`;
+
+    if (!finalTranscript.trim()) return;
     
     setIsAnalyzing(true);
     setError(null);
@@ -271,28 +297,10 @@ export default function App() {
     setProgress(0);
     setLoadingMessage('Initializing cognitive engine...');
 
-    const messages = [
-      'Ingesting transcript data...',
-      'Analyzing stakeholder requirements...',
-      'Validating document context...',
-      'Mapping architectural layers...',
-      'Identifying core business drivers...',
-      'Calculating financial ROI and OpEx...',
-      'Synthesizing executive strategy...',
-      'Generating technical visualizations...',
-      'Finalizing executive-ready report...'
-    ];
-
     const steps = [
-      { to: 12, message: messages[0] },
-      { to: 24, message: messages[1] },
-      { to: 36, message: messages[2] },
-      { to: 48, message: messages[3] },
-      { to: 60, message: messages[4] },
-      { to: 72, message: messages[5] },
-      { to: 84, message: messages[6] },
-      { to: 92, message: messages[7] },
-      { to: 98, message: messages[8] },
+      { to: 30, message: 'Ingesting transcript data...' },
+      { to: 60, message: 'Analyzing requirements...' },
+      { to: 90, message: 'Generating strategy...' },
     ];
 
     let currentProgress = 0;
@@ -300,15 +308,10 @@ export default function App() {
       for (let i = 0; i < steps.length; i++) {
         const step = steps[i];
         setLoadingMessage(step.message);
-        
-        // Hold
-        await new Promise(r => setTimeout(r, 400 + Math.random() * 400));
-        
-        // Move to target
         const target = step.to;
         const diff = target - currentProgress;
-        const increments = 15;
-        const stepTime = 30 + Math.random() * 40;
+        const increments = 10;
+        const stepTime = 50;
         
         for(let j = 1; j <= increments; j++) {
           currentProgress += diff / increments;
@@ -321,30 +324,35 @@ export default function App() {
     runProgress();
 
     try {
-      // Validation Logic
       if (documentText.trim()) {
-        setLoadingMessage('Cross-referencing document context...');
-        const validation = await validateDocumentMatch(documentText, transcript);
+        const validation = await validateDocumentMatch(documentText, finalTranscript);
         if (!validation.matches) {
-          setValidationError(validation.reason || "Missing document context. Please provide a document that matches the transcript's company/project.");
+          setValidationError(validation.reason || "Missing document context.");
           setIsAnalyzing(false);
           return;
         }
       }
 
-      const data = await analyzeTranscript(transcript, documentText);
+      const data = await analyzeTranscript(finalTranscript, documentText);
       setProgress(100);
       setLoadingMessage('Analysis complete.');
+      
+      const newHistoryItem: HistoryItem = {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        transcript: finalTranscript,
+        result: data
+      };
+      setHistory(prev => [newHistoryItem, ...prev]);
+
       setTimeout(() => {
         setResult(data);
         setIsAnalyzing(false);
-      }, 500);
+      }, 300);
     } catch (err) {
       console.error(err);
-      setError('Failed to analyze transcript. Please check your API key and try again.');
+      setError('Failed to analyze transcript.');
       setIsAnalyzing(false);
-    } finally {
-      // Done
     }
   };
 
@@ -372,160 +380,177 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-[1600px] mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 items-start">
+      <main className="max-w-[1800px] mx-auto px-6 py-8">
+        <div className="grid grid-cols-12 gap-8 items-start">
           
-          {/* Left Sidebar: Input Section */}
-          <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-24">
-            {/* Document Upload Section */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-black/40">
-                  <Upload className="w-4 h-4" />
-                  <span className="text-[11px] font-bold uppercase tracking-widest">Document Context (OCR)</span>
-                </div>
-                <button 
-                  onClick={loadSampleDoc}
-                  className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black transition-colors"
-                >
-                  Sample Doc
-                </button>
+          {/* Extreme Left: Input Section (col-span-3) */}
+          <div className="col-span-12 lg:col-span-3 space-y-6 lg:sticky lg:top-24">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 text-black/40">
+                <History className="w-4 h-4" />
+                <span className="text-[11px] font-bold uppercase tracking-widest">History</span>
               </div>
-              
-              <div className={cn(
-                "relative border-2 border-dashed rounded-2xl p-6 transition-all flex flex-col items-center justify-center text-center gap-4",
-                documentText ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
-              )}>
-                {isOcrLoading ? (
-                  <div className="space-y-3">
-                    <Loader2 className="w-6 h-6 animate-spin text-black/20 mx-auto" />
-                    <p className="text-[10px] font-medium text-black/40 uppercase tracking-widest">Extracting...</p>
-                  </div>
-                ) : documentText ? (
-                  <>
-                    <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <FileCheck className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    <button 
-                      onClick={() => setDocumentText('')}
-                      className="absolute top-3 right-3 p-1 hover:bg-emerald-100 rounded-full transition-colors"
-                    >
-                      <X className="w-3 h-3 text-emerald-600" />
-                    </button>
-                    <div className="w-full p-3 bg-white/50 rounded-xl border border-emerald-100 max-h-24 overflow-y-auto text-left">
-                      <p className="text-[9px] font-mono text-emerald-800/70 whitespace-pre-wrap">{documentText}</p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-10 h-10 bg-black/5 rounded-full flex items-center justify-center">
-                      <FileUp className="w-5 h-5 text-black/20" />
-                    </div>
-                    <label className="cursor-pointer bg-black text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-black/80 transition-all">
-                      Upload
-                      <input type="file" className="hidden" accept="image/*,application/pdf,.docx" onChange={handleFileUpload} />
-                    </label>
-                  </>
-                )}
-              </div>
-              {ocrError && (
-                <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex gap-2 items-start">
-                  <AlertTriangle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-[9px] font-medium text-red-900 whitespace-pre-wrap leading-tight">
-                    {ocrError}
-                  </p>
-                </div>
-              )}
-            </section>
-
-            <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-black/40">
-                  <FileText className="w-4 h-4" />
-                  <span className="text-[11px] font-bold uppercase tracking-widest">Input Transcript</span>
-                </div>
-                <button 
-                  onClick={loadSample}
-                  className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black transition-colors"
-                >
-                  Sample
-                </button>
-              </div>
-              <div className="relative group">
-                <textarea
-                  value={transcript}
-                  onChange={(e) => {
-                    setTranscript(e.target.value);
-                    setValidationError(null);
-                  }}
-                  placeholder="Paste transcript here..."
-                  className={cn(
-                    "w-full h-[350px] bg-white border rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm group-hover:border-black/20",
-                    validationError ? "border-red-500 ring-2 ring-red-500/10" : "border-black/10"
-                  )}
-                />
-              </div>
-              {validationError && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex gap-2 items-start animate-in fade-in slide-in-from-top-2">
-                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold text-red-900 uppercase tracking-widest leading-none">Validation Failed</p>
-                    <p className="text-[11px] text-red-700 leading-tight">
-                      {validationError}
-                    </p>
-                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mt-2">
-                      Show missing document, please put same company document
-                    </p>
-                  </div>
-                </div>
-              )}
-              <button
-                onClick={handleAnalyze}
-                disabled={isAnalyzing || !transcript.trim() || isOcrLoading}
-                className={cn(
-                  "w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-lg",
-                  isAnalyzing || !transcript.trim() || isOcrLoading
-                    ? "bg-black/10 text-black/40 cursor-not-allowed" 
-                    : "bg-black text-white hover:bg-black/90 active:scale-95"
-                )}
+              <button 
+                onClick={() => setShowHistory(!showHistory)}
+                className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black transition-colors"
               >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    Generate Strategy
-                  </>
-                )}
+                {showHistory ? 'Close' : 'View All'}
               </button>
-              {error && (
-                <p className="text-red-500 text-[10px] font-medium bg-red-50 p-3 rounded-lg border border-red-100">
-                  {error}
-                </p>
-              )}
-            </section>
+            </div>
+
+            {showHistory ? (
+              <div className="bg-white border border-black/5 rounded-2xl p-4 space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                {history.length === 0 ? (
+                  <p className="text-[10px] text-black/30 text-center py-8">No history yet</p>
+                ) : (
+                  history.map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setResult(item.result);
+                        setTranscript(item.transcript);
+                        setShowHistory(false);
+                      }}
+                      className="w-full text-left p-3 hover:bg-black/5 rounded-xl transition-all border border-transparent hover:border-black/5 group"
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-[9px] font-mono text-black/40">{new Date(item.timestamp).toLocaleDateString()}</span>
+                        <Trash2 
+                          className="w-3 h-3 text-black/0 group-hover:text-red-400 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setHistory(prev => prev.filter(h => h.id !== item.id));
+                          }}
+                        />
+                      </div>
+                      <p className="text-[10px] font-bold line-clamp-1">{item.result.recommendation}</p>
+                      <p className="text-[9px] text-black/40 line-clamp-2 mt-1">{item.transcript}</p>
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : (
+              <>
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-black/40">
+                      <Upload className="w-4 h-4" />
+                      <span className="text-[11px] font-bold uppercase tracking-widest">Context (OCR)</span>
+                    </div>
+                    <button onClick={loadSampleDoc} className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Sample Doc</button>
+                  </div>
+                  <div className={cn(
+                    "relative border-2 border-dashed rounded-2xl p-4 transition-all flex flex-col items-center justify-center text-center gap-3",
+                    documentText ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
+                  )}>
+                    {isOcrLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin text-black/20" />
+                    ) : documentText ? (
+                      <div className="flex items-center gap-2">
+                        <FileCheck className="w-4 h-4 text-emerald-600" />
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Loaded</span>
+                        <button onClick={() => setDocumentText('')}><X className="w-3 h-3 text-emerald-600" /></button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer bg-black/5 text-black/40 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-black/10 transition-all">
+                        Upload Context
+                        <input type="file" className="hidden" accept="image/*,application/pdf,.docx" onChange={handleFileUpload} />
+                      </label>
+                    )}
+                  </div>
+                </section>
+
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex bg-black/5 p-1 rounded-lg">
+                      <button 
+                        onClick={() => setInputMode('paste')}
+                        className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'paste' ? "bg-white shadow-sm text-black" : "text-black/40")}
+                      >
+                        Paste
+                      </button>
+                      <button 
+                        onClick={() => setInputMode('live')}
+                        className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'live' ? "bg-white shadow-sm text-black" : "text-black/40")}
+                      >
+                        Live
+                      </button>
+                    </div>
+                    <button onClick={loadSample} className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Sample</button>
+                  </div>
+
+                  {inputMode === 'paste' ? (
+                    <textarea
+                      value={transcript}
+                      onChange={(e) => setTranscript(e.target.value)}
+                      placeholder="Paste transcript here..."
+                      className="w-full h-[300px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-1">Person 1 (Customer)</label>
+                        <textarea
+                          value={livePerson1}
+                          onChange={(e) => setLivePerson1(e.target.value)}
+                          placeholder="Customer speaking..."
+                          className="w-full h-[140px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-1">Person 2 (Architect)</label>
+                        <textarea
+                          value={livePerson2}
+                          onChange={(e) => setLivePerson2(e.target.value)}
+                          placeholder="Architect speaking..."
+                          className="w-full h-[140px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
+                        />
+                      </div>
+                      <button 
+                        onClick={() => setIsRecording(!isRecording)}
+                        className={cn(
+                          "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border",
+                          isRecording ? "bg-red-50 border-red-200 text-red-600 animate-pulse" : "bg-black/5 border-transparent text-black/40 hover:bg-black/10"
+                        )}
+                      >
+                        {isRecording ? <Square className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                        {isRecording ? "Hands-free Active" : "Start Conversation"}
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing || isOcrLoading || (inputMode === 'paste' ? !transcript.trim() : (!livePerson1.trim() && !livePerson2.trim()))}
+                    className={cn(
+                      "w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-lg",
+                      isAnalyzing ? "bg-black/10 text-black/40 cursor-not-allowed" : "bg-black text-white hover:bg-black/90 active:scale-95"
+                    )}
+                  >
+                    {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {isAnalyzing ? "Analyzing..." : "Generate Strategy"}
+                  </button>
+                </section>
+              </>
+            )}
           </div>
 
-          {/* Right Section: Output Section */}
-          <div className="lg:col-span-3">
+          {/* Result Section */}
+          <div className="col-span-12 lg:col-span-9">
             <AnimatePresence mode="wait">
               {!result && !isAnalyzing ? (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="h-[80vh] flex flex-col items-center justify-center text-center space-y-6 border-2 border-dashed border-black/5 rounded-3xl bg-white/50"
+                  className="flex flex-col items-center justify-center min-h-[600px] text-center space-y-6"
                 >
                   <div className="w-20 h-20 bg-black/5 rounded-full flex items-center justify-center">
-                    <Target className="w-10 h-10 text-black/20" />
+                    <BrainCircuit className="w-10 h-10 text-black/20" />
                   </div>
-                  <div className="space-y-2 max-w-sm">
-                    <h3 className="font-black text-2xl tracking-tight">Ready for Analysis</h3>
-                    <p className="text-sm text-black/50 leading-relaxed">
-                      Upload a document or paste a discovery call transcript to generate your 4-part executive strategy.
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-black tracking-tight uppercase italic">Ready for Analysis</h2>
+                    <p className="text-sm text-black/40 max-w-xs mx-auto font-medium">
+                      Provide a transcript or start a live conversation to generate your enterprise strategy.
                     </p>
                   </div>
                 </motion.div>
@@ -542,22 +567,9 @@ export default function App() {
                           <path d="M17.5 19c.5 0 1-.1 1.5-.4 1.5-.7 2.5-2.2 2.5-3.6 0-2-1.5-3.5-3.5-3.5-.2 0-.5 0-.7.1C16.5 8.6 14.5 7 12 7c-2.8 0-5.1 2.1-5.5 4.8-.2-.1-.5-.1-.7-.1-2.2 0-4 1.8-4 4s1.8 4 4 4h11.7z" />
                         </clipPath>
                       </defs>
-                      {/* Background Cloud */}
-                      <path 
-                        d="M17.5 19c.5 0 1-.1 1.5-.4 1.5-.7 2.5-2.2 2.5-3.6 0-2-1.5-3.5-3.5-3.5-.2 0-.5 0-.7.1C16.5 8.6 14.5 7 12 7c-2.8 0-5.1 2.1-5.5 4.8-.2-.1-.5-.1-.7-.1-2.2 0-4 1.8-4 4s1.8 4 4 4h11.7z" 
-                        className="fill-black/5 stroke-black/10"
-                        strokeWidth="0.5"
-                      />
-                      {/* Filling Cloud */}
+                      <path d="M17.5 19c.5 0 1-.1 1.5-.4 1.5-.7 2.5-2.2 2.5-3.6 0-2-1.5-3.5-3.5-3.5-.2 0-.5 0-.7.1C16.5 8.6 14.5 7 12 7c-2.8 0-5.1 2.1-5.5 4.8-.2-.1-.5-.1-.7-.1-2.2 0-4 1.8-4 4s1.8 4 4 4h11.7z" className="fill-black/5 stroke-black/10" strokeWidth="0.5" />
                       <g clipPath="url(#cloud-clip)">
-                        <motion.rect
-                          x="0"
-                          y={24 - (24 * progress / 100)}
-                          width="24"
-                          height="24"
-                          className="fill-red-600"
-                          transition={{ type: 'spring', bounce: 0, duration: 0.5 }}
-                        />
+                        <motion.rect x="0" y={24 - (24 * progress / 100)} width="24" height="24" className="fill-red-600" transition={{ type: 'spring', bounce: 0, duration: 0.5 }} />
                       </g>
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center pt-4">
@@ -565,409 +577,203 @@ export default function App() {
                       <Cloud className="w-4 h-4 text-black/20 animate-bounce mt-1" />
                     </div>
                   </div>
-
-                  <div className="text-center space-y-4 max-w-md">
+                  <div className="text-center space-y-4">
                     <h3 className="text-xl font-black tracking-tight uppercase italic">Synthesizing Intelligence</h3>
-                    <div className="h-1 w-64 bg-black/5 rounded-full overflow-hidden mx-auto">
-                      <motion.div 
-                        className="h-full bg-red-600"
-                        animate={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <AnimatePresence mode="wait">
-                      <motion.p 
-                        key={loadingMessage}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="text-sm font-bold text-black/40 uppercase tracking-widest min-h-[1.5em]"
-                      >
-                        {loadingMessage}
-                      </motion.p>
-                    </AnimatePresence>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-8 w-full max-w-2xl opacity-20">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-32 bg-black/5 rounded-2xl animate-pulse" />
-                    ))}
+                    <p className="text-sm font-bold text-black/40 uppercase tracking-widest">{loadingMessage}</p>
                   </div>
                 </motion.div>
               ) : (
                 <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-8 pb-20"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="grid grid-cols-12 gap-8"
                 >
-                  {/* The 4-Part Grid Layout */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    
-                    {/* Part 1: Executive Strategy & Summary */}
-                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6 flex flex-col">
+                  {/* Center Left: Use Case, Solution Set, Client References (col-span-5) */}
+                  <div className="col-span-12 lg:col-span-5 space-y-8">
+                    {/* Use Case Section */}
+                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
                       <div className="flex items-center gap-2 text-black/40">
                         <Target className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">01. Executive Strategy</span>
+                        <span className="text-[11px] font-bold uppercase tracking-widest">Use Case Analysis</span>
                       </div>
-                      <div className="flex-1 flex items-center">
-                        <p className="text-2xl font-serif italic text-black/80 leading-relaxed">
-                          "{result?.executive_summary}"
-                        </p>
-                      </div>
-                      <div className="pt-6 border-t border-black/5 grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Organization</p>
-                          <p className="text-xs font-bold">{result?.client_snapshot.organization_type}</p>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Maturity</p>
-                          <p className="text-xs font-bold">{result?.client_snapshot.technical_maturity_level}</p>
-                        </div>
-                      </div>
-                    </section>
-
-                    {/* Part 2: Immediate Actions & Validation */}
-                    <section className="bg-black text-white rounded-3xl p-8 shadow-xl space-y-8">
-                      <div className="flex items-center gap-2 text-white/40">
-                        <Rocket className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">02. Immediate Actions</span>
-                      </div>
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 gap-6">
-                          <div>
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-2">Demo Direction</p>
-                            <p className="text-sm text-white/90 leading-relaxed font-medium">{result?.next_steps.demo_direction}</p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-2">Validation Checklist</p>
+                      
+                      <div className="space-y-8">
+                        {result?.matched_use_cases.map((uc, i) => (
+                          <div key={i} className="space-y-6">
                             <div className="space-y-2">
-                              {result?.next_steps.validation_questions.slice(0, 3).map((q, i) => (
-                                <div key={i} className="flex gap-3 text-xs">
-                                  <div className="w-4 h-4 rounded border border-white/20 flex items-center justify-center shrink-0">
-                                    <span className="text-[8px] font-bold">?</span>
-                                  </div>
-                                  <span className="text-white/60 italic">{q}</span>
+                              <h4 className="text-lg font-black tracking-tight uppercase italic text-red-600">{uc.title}</h4>
+                              <p className="text-xs font-serif italic text-black/60">"{uc.client_statement}"</p>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 gap-4 text-[11px]">
+                              <div className="space-y-1">
+                                <p className="font-bold uppercase tracking-widest text-black/30">Who / Where</p>
+                                <p className="font-medium">{uc.who_where}</p>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="font-bold uppercase tracking-widest text-black/30">Current Workflow</p>
+                                <p className="text-black/70 leading-relaxed">{uc.current_workflow}</p>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="font-bold uppercase tracking-widest text-black/30">Desired Workflow</p>
+                                <p className="text-black/70 leading-relaxed">{uc.desired_workflow}</p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                  <p className="font-bold uppercase tracking-widest text-black/30">Data & Integrations</p>
+                                  <p className="text-black/70">{uc.data_integrations}</p>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </section>
-
-                    {/* Part 3: Technical Architecture & Visualization */}
-                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6 group relative">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-black/40">
-                          <Network className="w-4 h-4" />
-                          <span className="text-[11px] font-bold uppercase tracking-widest">03. Architectural Blueprint</span>
-                        </div>
-                        <button 
-                          onClick={() => setSelectedDiagram({ chart: result?.diagrams.tech_architecture_diagram || '', title: 'Architectural Blueprint' })}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-black/5 rounded-lg text-black/40 hover:text-black"
-                        >
-                          <Maximize2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <div 
-                        className="bg-black/5 rounded-2xl p-4 overflow-hidden cursor-zoom-in hover:bg-black/[0.07] transition-colors"
-                        onClick={() => setSelectedDiagram({ chart: result?.diagrams.tech_architecture_diagram || '', title: 'Architectural Blueprint' })}
-                      >
-                        <Mermaid chart={result?.diagrams.tech_architecture_diagram || ''} />
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {result?.core_drivers.map((driver, i) => (
-                          <span key={i} className="px-2 py-1 bg-black/5 rounded text-[9px] font-bold uppercase tracking-wider">{driver}</span>
-                        ))}
-                      </div>
-                    </section>
-
-                    {/* Part 4: Recommendations & Financials */}
-                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6 overflow-hidden flex flex-col">
-                      <div className="flex items-center gap-2 text-black/40">
-                        <DollarSign className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">04. Solution & Financials</span>
-                      </div>
-                      <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                        {result?.top_recommendations.slice(0, 3).map((rec, i) => (
-                          <div key={i} className="p-4 bg-black/5 rounded-2xl space-y-3">
-                            <div className="flex justify-between items-start">
-                              <h5 className="font-bold text-sm">{rec.solution_name}</h5>
-                              <span className="text-[10px] font-mono font-bold text-emerald-600">{rec.estimated_monthly_cost}</span>
-                            </div>
-                            <p className="text-[10px] text-black/60 line-clamp-2">{rec.business_value}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="pt-4 border-t border-black/5">
-                        <div className="flex items-center justify-between text-black/40">
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Pilot Project</span>
-                          <span className="text-[10px] font-bold">{result?.recommended_pilot.name}</span>
-                        </div>
-                      </div>
-                    </section>
-                  </div>
-
-                  {/* Part 1.5: Client Pains & Goals */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <section className="bg-red-50/50 border border-red-100 rounded-3xl p-8 space-y-4">
-                      <div className="flex items-center gap-2 text-red-600/60">
-                        <AlertTriangle className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Detected Pains</span>
-                      </div>
-                      <ul className="space-y-2">
-                        {result?.client_snapshot.detected_pains.map((pain, i) => (
-                          <li key={i} className="flex gap-3 text-xs text-red-900/70">
-                            <div className="w-1.5 h-1.5 bg-red-400 rounded-full shrink-0 mt-1.5" />
-                            {pain}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                    <section className="bg-emerald-50/50 border border-emerald-100 rounded-3xl p-8 space-y-4">
-                      <div className="flex items-center gap-2 text-emerald-600/60">
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Strategic Goals</span>
-                      </div>
-                      <ul className="space-y-2">
-                        {result?.client_snapshot.detected_goals.map((goal, i) => (
-                          <li key={i} className="flex gap-3 text-xs text-emerald-900/70">
-                            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full shrink-0 mt-1.5" />
-                            {goal}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  </div>
-
-                  {/* Detailed Breakdown (Below the 4-part grid) */}
-                  <div className="pt-12 border-t border-black/5 space-y-12">
-                    {/* Full Recommendations */}
-                    <section className="space-y-6">
-                      <div className="flex items-center gap-2 text-black/40">
-                        <BarChart2 className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Strategic Comparison</span>
-                      </div>
-                      <div className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm h-[400px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart
-                            data={result?.top_recommendations.map(rec => {
-                              const costNum = parseFloat(rec.estimated_monthly_cost.replace(/[^0-9.]/g, '')) || 0;
-                              return {
-                                name: rec.solution_name.length > 20 ? rec.solution_name.substring(0, 20) + '...' : rec.solution_name,
-                                'Confidence %': rec.confidence_score * 100,
-                                'Impact Score': rec.impact_score,
-                                'Monthly Cost ($)': costNum,
-                                fullName: rec.solution_name
-                              };
-                            })}
-                            margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                            <XAxis 
-                              dataKey="name" 
-                              axisLine={false} 
-                              tickLine={false} 
-                              tick={{ fontSize: 10, fill: '#666' }}
-                              angle={-45}
-                              textAnchor="end"
-                              interval={0}
-                            />
-                            <YAxis 
-                              yAxisId="left"
-                              axisLine={false} 
-                              tickLine={false} 
-                              tick={{ fontSize: 10, fill: '#666' }}
-                              domain={[0, 100]}
-                            />
-                            <YAxis 
-                              yAxisId="right"
-                              orientation="right"
-                              axisLine={false} 
-                              tickLine={false} 
-                              tick={{ fontSize: 10, fill: '#666' }}
-                            />
-                            <Tooltip 
-                              cursor={{ fill: '#f9f9f9' }}
-                              contentStyle={{ 
-                                borderRadius: '12px', 
-                                border: 'none', 
-                                boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                                fontSize: '12px'
-                              }}
-                            />
-                            <Legend verticalAlign="top" height={36} iconType="circle" />
-                            <Bar yAxisId="left" dataKey="Confidence %" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
-                            <Bar yAxisId="left" dataKey="Impact Score" fill="#000000" radius={[4, 4, 0, 0]} barSize={20} />
-                            <Bar yAxisId="right" dataKey="Monthly Cost ($)" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={20} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </section>
-
-                    {/* Full Recommendations */}
-                    <section className="space-y-6">
-                      <div className="flex items-center gap-2 text-black/40">
-                        <Layers className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Detailed Recommendations</span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-4">
-                        {result?.top_recommendations.map((rec, i) => (
-                          <div key={i} className="bg-white border border-black/5 rounded-2xl p-6 flex gap-6 items-start">
-                            <div className="w-10 h-10 bg-black/5 rounded-xl flex items-center justify-center shrink-0">
-                              {LAYER_ICONS[rec.architecture_layer] || <ChevronRight className="w-4 h-4" />}
-                            </div>
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
-                              <div className="md:col-span-2 space-y-4">
-                                <div>
-                                  <h4 className="text-[9px] font-bold uppercase tracking-widest text-black/30 mb-1">{rec.architecture_layer}</h4>
-                                  <h5 className="font-bold text-base mb-3">{rec.solution_name}</h5>
-                                  <div className="space-y-3">
-                                    <div>
-                                      <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 mb-1">Strategic Fit</p>
-                                      <p className="text-xs text-black/70 leading-relaxed">{rec.why_it_fits}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 mb-1">Technical Rationale</p>
-                                      <p className="text-xs text-black/60 leading-relaxed italic">{rec.technical_reason}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5">
-                                  <div>
-                                    <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Pricing Model</p>
-                                    <p className="text-[10px] font-medium text-black/70">{rec.pricing_model}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600/50">Potential Savings</p>
-                                    <p className="text-[10px] font-bold text-emerald-700">{rec.potential_savings}</p>
-                                  </div>
+                                <div className="space-y-1">
+                                  <p className="font-bold uppercase tracking-widest text-black/30">Value & Metrics</p>
+                                  <p className="text-black/70">{uc.value_metrics}</p>
                                 </div>
                               </div>
-                              <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-                                <div className="flex justify-between items-center mb-2">
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-700">Monthly Est.</span>
-                                  <span className="text-xs font-bold text-emerald-700">{rec.estimated_monthly_cost}</span>
-                                </div>
-                                <ul className="space-y-1">
-                                  {rec.cost_breakdown.map((item, idx) => (
-                                    <li key={idx} className="text-[9px] text-emerald-800/60 flex items-center gap-1.5">
-                                      <div className="w-1 h-1 bg-emerald-400 rounded-full" />
-                                      {item}
-                                    </li>
-                                  ))}
+                              <div className="space-y-1">
+                                <p className="font-bold uppercase tracking-widest text-black/30">Acceptance Criteria</p>
+                                <ul className="list-disc list-inside space-y-0.5 text-black/70">
+                                  {uc.acceptance_criteria.map((ac, j) => <li key={j}>{ac}</li>)}
                                 </ul>
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
+
+                      <div className="pt-6 border-t border-black/5">
+                        <div className="bg-black/5 rounded-2xl p-4 overflow-hidden cursor-zoom-in hover:bg-black/[0.07] transition-colors"
+                             onClick={() => setSelectedDiagram({ chart: result?.diagrams.use_case_diagram || '', title: 'Use Case Diagram' })}>
+                          <Mermaid chart={result?.diagrams.use_case_diagram || ''} />
+                        </div>
+                      </div>
                     </section>
 
-                    {/* Architectural Visualizations */}
-                    <section className="space-y-6">
+                    {/* Solution Set Section */}
+                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
+                      <div className="flex items-center gap-2 text-black/40">
+                        <Layers className="w-4 h-4" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest">Solution Set</span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        {result?.solution_set.map((set, i) => (
+                          <div key={i} className="p-4 bg-black/5 rounded-2xl space-y-2">
+                            <h5 className="text-[10px] font-bold uppercase tracking-widest text-red-600">{set.category}</h5>
+                            <div className="flex flex-wrap gap-2">
+                              {set.solutions.map((sol, j) => (
+                                <span key={j} className="px-2 py-1 bg-white border border-black/5 rounded text-[10px] font-medium">{sol}</span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    {/* Client References Section */}
+                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
+                      <div className="flex items-center gap-2 text-black/40">
+                        <Users className="w-4 h-4" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest">Client References</span>
+                      </div>
+                      <div className="space-y-4">
+                        {result?.client_references.map((ref, i) => (
+                          <div key={i} className="p-4 border border-black/5 rounded-2xl space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">{ref.industry}</span>
+                              <span className="text-[9px] font-medium px-2 py-0.5 bg-black/5 rounded-full">{ref.company_size}</span>
+                            </div>
+                            <p className="text-[11px] text-black/70 leading-relaxed italic">"{ref.success_story}"</p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* Center: Recommendation (col-span-3) */}
+                  <div className="col-span-12 lg:col-span-3 space-y-8">
+                    <section className="bg-black text-white rounded-3xl p-8 shadow-xl space-y-6 text-center h-full flex flex-col justify-center">
+                      <div className="flex items-center justify-center gap-2 text-white/40">
+                        <Rocket className="w-4 h-4" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest">Core Recommendation</span>
+                      </div>
+                      <h3 className="text-3xl font-black tracking-tighter uppercase italic leading-none">
+                        {result?.recommendation}
+                      </h3>
+                      <div className="pt-6 border-t border-white/10">
+                        <p className="text-sm text-white/60 font-serif italic leading-relaxed">
+                          {result?.executive_summary}
+                        </p>
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* Extreme Right: Technical Architecture, Price, TCO (col-span-4) */}
+                  <div className="col-span-12 lg:col-span-4 space-y-8">
+                    {/* Technical Architecture Section */}
+                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
                       <div className="flex items-center gap-2 text-black/40">
                         <Network className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Architectural Visualizations</span>
+                        <span className="text-[11px] font-bold uppercase tracking-widest">Technical Architecture</span>
                       </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-white border border-black/5 rounded-3xl p-6 shadow-sm space-y-4 group relative">
-                          <div className="flex justify-between items-center">
-                            <h5 className="text-[10px] font-bold uppercase tracking-widest text-black/40">Technical Architecture</h5>
-                            <button 
-                              onClick={() => setSelectedDiagram({ chart: result?.diagrams.tech_architecture_diagram || '', title: 'Technical Architecture' })}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-black/5 rounded-lg text-black/40 hover:text-black"
-                            >
-                              <Maximize2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          <div 
-                            className="bg-black/5 rounded-2xl p-4 overflow-hidden min-h-[300px] flex items-center justify-center cursor-zoom-in hover:bg-black/[0.07] transition-colors"
-                            onClick={() => setSelectedDiagram({ chart: result?.diagrams.tech_architecture_diagram || '', title: 'Technical Architecture' })}
-                          >
-                            <Mermaid chart={result?.diagrams.tech_architecture_diagram || ''} />
-                          </div>
-                        </div>
-                        <div className="bg-white border border-black/5 rounded-3xl p-6 shadow-sm space-y-4 group relative">
-                          <div className="flex justify-between items-center">
-                            <h5 className="text-[10px] font-bold uppercase tracking-widest text-black/40">Use Case Diagram</h5>
-                            <button 
-                              onClick={() => setSelectedDiagram({ chart: result?.diagrams.use_case_diagram || '', title: 'Use Case Diagram' })}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-black/5 rounded-lg text-black/40 hover:text-black"
-                            >
-                              <Maximize2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          <div 
-                            className="bg-black/5 rounded-2xl p-4 overflow-hidden min-h-[300px] flex items-center justify-center cursor-zoom-in hover:bg-black/[0.07] transition-colors"
-                            onClick={() => setSelectedDiagram({ chart: result?.diagrams.use_case_diagram || '', title: 'Use Case Diagram' })}
-                          >
-                            <Mermaid chart={result?.diagrams.use_case_diagram || ''} />
-                          </div>
+                      <div className="space-y-4">
+                        <p className="text-[11px] text-black/70 leading-relaxed">{result?.diagrams.architecture_definition}</p>
+                        <div className="bg-black/5 rounded-2xl p-4 overflow-hidden cursor-zoom-in hover:bg-black/[0.07] transition-colors"
+                             onClick={() => setSelectedDiagram({ chart: result?.diagrams.tech_architecture_diagram || '', title: 'Technical Architecture' })}>
+                          <Mermaid chart={result?.diagrams.tech_architecture_diagram || ''} />
                         </div>
                       </div>
                     </section>
 
-                    {/* Use Case & Roadmap */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      <section className="space-y-6">
-                        <div className="flex items-center gap-2 text-black/40">
-                          <FileText className="w-4 h-4" />
-                          <span className="text-[11px] font-bold uppercase tracking-widest">Key Use Cases</span>
-                        </div>
-                        <div className="space-y-4">
-                          {result?.matched_use_cases.slice(0, 3).map((uc, i) => (
-                            <div key={i} className="bg-white border border-black/5 rounded-2xl p-6 space-y-4">
-                              <div className="flex justify-between items-center">
-                                <h5 className="font-bold text-sm">{uc.scenario_name}</h5>
-                                <span className="text-[8px] font-bold px-2 py-0.5 bg-black text-white rounded-full">{uc.format}</span>
-                              </div>
-                              <div className="grid grid-cols-1 gap-3">
-                                <div className="space-y-1">
-                                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Situation</p>
-                                  <p className="text-[11px] text-black/70 leading-relaxed">{uc.situation}</p>
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Task</p>
-                                  <p className="text-[11px] text-black/70 leading-relaxed">{uc.problem_or_task}</p>
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Action</p>
-                                  <p className="text-[11px] text-black/70 leading-relaxed">{uc.action}</p>
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/30">Result</p>
-                                  <p className="text-[11px] text-emerald-700 font-medium leading-relaxed">{uc.result}</p>
-                                </div>
-                              </div>
-                              {uc.industry_relevance && (
-                                <div className="pt-3 border-t border-black/5">
-                                  <p className="text-[10px] italic text-black/40">{uc.industry_relevance}</p>
-                                </div>
-                              )}
+                    {/* Price of each solution Section */}
+                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
+                      <div className="flex items-center gap-2 text-black/40">
+                        <DollarSign className="w-4 h-4" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest">Solution Pricing</span>
+                      </div>
+                      <div className="space-y-4">
+                        {result?.top_recommendations.map((rec, i) => (
+                          <div key={i} className="p-4 bg-black/5 rounded-2xl space-y-3">
+                            <div className="flex justify-between items-start">
+                              <h5 className="font-bold text-xs uppercase tracking-tight">{rec.solution_name}</h5>
+                              <span className="text-[10px] font-mono font-bold text-emerald-600">{rec.estimated_monthly_cost}</span>
                             </div>
-                          ))}
-                        </div>
-                      </section>
-                      <section className="space-y-6">
-                        <div className="flex items-center gap-2 text-black/40">
-                          <Target className="w-4 h-4" />
-                          <span className="text-[11px] font-bold uppercase tracking-widest">Implementation Roadmap</span>
-                        </div>
-                        <div className="space-y-4">
-                          {result?.implementation_phases.map((phase, i) => (
-                            <div key={i} className="bg-white border border-black/5 rounded-2xl p-6 flex gap-4 items-center">
-                              <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                                {i + 1}
-                              </div>
-                              <div>
-                                <h5 className="font-bold text-xs">{phase.phase_name}</h5>
-                                <p className="text-[10px] text-black/50">{phase.focus}</p>
-                              </div>
+                            <div className="space-y-1">
+                              {rec.cost_breakdown.map((item, j) => (
+                                <div key={j} className="flex justify-between text-[9px] text-black/40">
+                                  <span>{item}</span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    {/* Total Cost of Ownership Section */}
+                    <section className="bg-red-50 border border-red-100 rounded-3xl p-8 space-y-6">
+                      <div className="flex items-center gap-2 text-red-600/60">
+                        <Activity className="w-4 h-4" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest">TCO Analysis</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Monthly Est.</p>
+                          <p className="text-lg font-black text-red-600">{result?.total_cost_of_ownership.total_monthly_estimate}</p>
                         </div>
-                      </section>
-                    </div>
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Setup Cost</p>
+                          <p className="text-lg font-black text-red-600">{result?.total_cost_of_ownership.one_time_setup_cost}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-3 pt-4 border-t border-red-100">
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">3-Year ROI</p>
+                          <p className="text-xs font-bold text-red-900">{result?.total_cost_of_ownership.three_year_roi}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Optimization</p>
+                          <p className="text-[10px] text-red-900/70 leading-relaxed">{result?.total_cost_of_ownership.cost_optimization_strategy}</p>
+                        </div>
+                      </div>
+                    </section>
                   </div>
                 </motion.div>
               )}
