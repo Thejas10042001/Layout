@@ -79,18 +79,9 @@ export const ARCHITECT_SCHEMA = {
         required: ["title", "client_statement", "who_where", "current_workflow", "desired_workflow", "data_integrations", "value_metrics", "constraints_risks", "acceptance_criteria", "priority_timeline"],
       },
     },
-    diagrams: {
-      type: Type.OBJECT,
-      properties: {
-        use_case_diagram: { type: Type.STRING, description: "Mermaid.js code for a Use Case diagram." },
-        tech_architecture_diagram: { type: Type.STRING, description: "Mermaid.js code for a System Technical Architecture diagram." },
-        architecture_definition: { type: Type.STRING, description: "Textual definition of the architecture." },
-      },
-      required: ["use_case_diagram", "tech_architecture_diagram", "architecture_definition"],
-    },
     executive_summary: { type: Type.STRING },
   },
-  required: ["client_snapshot", "recommendation", "top_recommendations", "total_cost_of_ownership", "solution_set", "client_references", "matched_use_cases", "diagrams", "executive_summary"],
+  required: ["client_snapshot", "recommendation", "top_recommendations", "total_cost_of_ownership", "solution_set", "client_references", "matched_use_cases", "executive_summary"],
 };
 
 export async function performOCR(base64Data: string, mimeType: string): Promise<string> {
@@ -194,16 +185,12 @@ Strategic Requirements:
    - Acceptance Criteria: Bullet list.
    - Priority + Timeline: Must-have vs nice-to-have, phases, stakeholders.
 
-2. Visual Strategy: Provide Mermaid.js 'flowchart TD' code for:
-   - Use Case Diagram: Actors outside, use cases inside a "System Boundary" subgraph.
-   - Technical Architecture: Layers (Foundation, Identity, Network, Security, Storage, Compute, AI) as subgraphs.
-
+2. Technical Architecture Definition: A textual description of the proposed architecture.
 3. Solution Set: Group proposed solutions by category.
 4. Client References: Provide industry-specific success stories.
-5. Technical Architecture Definition: A textual description of the proposed architecture.
-6. Price of each solution: Detailed AWS monthly costs for each recommendation.
-7. Total Cost of Ownership (TCO): Monthly estimate, setup cost, 3-year ROI, and optimization strategy.
-8. Recommendation: A single, central strategic recommendation.
+5. Price of each solution: Detailed AWS monthly costs for each recommendation.
+6. Total Cost of Ownership (TCO): Monthly estimate, setup cost, 3-year ROI, and optimization strategy.
+7. Recommendation: A single, central strategic recommendation.
 
 Output must be concise and executive-ready.`,
           },

@@ -39,7 +39,6 @@ import {
   DollarSign,
   Activity
 } from 'lucide-react';
-import mermaid from 'mermaid';
 import { analyzeTranscript, performOCR, validateDocumentMatch } from './services/geminiService';
 import { cn } from './lib/utils';
 import mammoth from 'mammoth';
@@ -55,51 +54,6 @@ import {
   Cell
 } from 'recharts';
 
-mermaid.initialize({
-  startOnLoad: true,
-  theme: 'neutral',
-  securityLevel: 'loose',
-});
-
-const cleanMermaid = (chart: string) => {
-  return chart
-    .replace(/```mermaid/g, '')
-    .replace(/```/g, '')
-    .trim();
-};
-
-const Mermaid = ({ chart }: { chart: string }) => {
-  const ref = React.useRef<HTMLDivElement>(null);
-  const id = React.useId().replace(/:/g, '');
-
-  React.useEffect(() => {
-    const renderChart = async () => {
-      const cleanedChart = cleanMermaid(chart);
-      if (ref.current && cleanedChart) {
-        try {
-          ref.current.innerHTML = cleanedChart;
-          ref.current.removeAttribute('data-processed');
-          await mermaid.run({
-            nodes: [ref.current],
-          });
-        } catch (err) {
-          console.error('Mermaid render error:', err);
-        }
-      }
-    };
-    renderChart();
-  }, [chart]);
-
-  return (
-    <div 
-      id={`mermaid-${id}`}
-      className="mermaid w-full h-full flex items-center justify-center [&>svg]:max-w-full [&>svg]:h-auto" 
-      ref={ref}
-    >
-      {cleanMermaid(chart)}
-    </div>
-  );
-};
 
 interface AnalysisResult {
   client_snapshot: {
@@ -140,11 +94,6 @@ interface AnalysisResult {
     acceptance_criteria: string[];
     priority_timeline: string;
   }[];
-  diagrams: {
-    use_case_diagram: string;
-    tech_architecture_diagram: string;
-    architecture_definition: string;
-  };
   executive_summary: string;
 }
 
@@ -210,7 +159,6 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [selectedDiagram, setSelectedDiagram] = useState<{ chart: string; title: string } | null>(null);
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('');
 
@@ -586,239 +534,180 @@ export default function App() {
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="grid grid-cols-12 gap-8"
+                  className="space-y-8"
                 >
-                  {/* Center Left: Use Case, Solution Set, Client References (col-span-5) */}
-                  <div className="col-span-12 lg:col-span-5 space-y-8">
-                    {/* Use Case Section */}
-                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
-                      <div className="flex items-center gap-2 text-black/40">
-                        <Target className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Use Case Analysis</span>
-                      </div>
-                      
-                      <div className="space-y-8">
-                        {result?.matched_use_cases.map((uc, i) => (
-                          <div key={i} className="space-y-6">
-                            <div className="space-y-2">
-                              <h4 className="text-lg font-black tracking-tight uppercase italic text-red-600">{uc.title}</h4>
-                              <p className="text-xs font-serif italic text-black/60">"{uc.client_statement}"</p>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 gap-4 text-[11px]">
-                              <div className="space-y-1">
-                                <p className="font-bold uppercase tracking-widest text-black/30">Who / Where</p>
-                                <p className="font-medium">{uc.who_where}</p>
+                  <div className="grid grid-cols-12 gap-8">
+                    {/* Left Column: Use Case, Solution Set, Client References (col-span-6) */}
+                    <div className="col-span-12 lg:col-span-6 space-y-8">
+                      {/* Use Case Section */}
+                      <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
+                        <div className="flex items-center gap-2 text-black/40">
+                          <Target className="w-4 h-4" />
+                          <span className="text-[11px] font-bold uppercase tracking-widest">Use Case Analysis</span>
+                        </div>
+                        
+                        <div className="space-y-8">
+                          {result?.matched_use_cases.map((uc, i) => (
+                            <div key={i} className="space-y-6">
+                              <div className="space-y-2">
+                                <h4 className="text-lg font-black tracking-tight uppercase italic text-red-600">{uc.title}</h4>
+                                <p className="text-xs font-serif italic text-black/60">"{uc.client_statement}"</p>
                               </div>
-                              <div className="space-y-1">
-                                <p className="font-bold uppercase tracking-widest text-black/30">Current Workflow</p>
-                                <p className="text-black/70 leading-relaxed">{uc.current_workflow}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="font-bold uppercase tracking-widest text-black/30">Desired Workflow</p>
-                                <p className="text-black/70 leading-relaxed">{uc.desired_workflow}</p>
-                              </div>
-                              <div className="grid grid-cols-2 gap-4">
+                              
+                              <div className="grid grid-cols-1 gap-4 text-[11px]">
                                 <div className="space-y-1">
-                                  <p className="font-bold uppercase tracking-widest text-black/30">Data & Integrations</p>
-                                  <p className="text-black/70">{uc.data_integrations}</p>
+                                  <p className="font-bold uppercase tracking-widest text-black/30">Who / Where</p>
+                                  <p className="font-medium">{uc.who_where}</p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="font-bold uppercase tracking-widest text-black/30">Value & Metrics</p>
-                                  <p className="text-black/70">{uc.value_metrics}</p>
+                                  <p className="font-bold uppercase tracking-widest text-black/30">Current Workflow</p>
+                                  <p className="text-black/70 leading-relaxed">{uc.current_workflow}</p>
                                 </div>
+                                <div className="space-y-1">
+                                  <p className="font-bold uppercase tracking-widest text-black/30">Desired Workflow</p>
+                                  <p className="text-black/70 leading-relaxed">{uc.desired_workflow}</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-1">
+                                    <p className="font-bold uppercase tracking-widest text-black/30">Data & Integrations</p>
+                                    <p className="text-black/70">{uc.data_integrations}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="font-bold uppercase tracking-widest text-black/30">Value & Metrics</p>
+                                    <p className="text-black/70">{uc.value_metrics}</p>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="font-bold uppercase tracking-widest text-black/30">Acceptance Criteria</p>
+                                  <ul className="list-disc list-inside space-y-0.5 text-black/70">
+                                    {uc.acceptance_criteria.map((ac, j) => <li key={j}>{ac}</li>)}
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+
+                      {/* Solution Set Section */}
+                      <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
+                        <div className="flex items-center gap-2 text-black/40">
+                          <Layers className="w-4 h-4" />
+                          <span className="text-[11px] font-bold uppercase tracking-widest">Solution Set</span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4">
+                          {result?.solution_set.map((set, i) => (
+                            <div key={i} className="p-4 bg-black/5 rounded-2xl space-y-2">
+                              <h5 className="text-[10px] font-bold uppercase tracking-widest text-red-600">{set.category}</h5>
+                              <div className="flex flex-wrap gap-2">
+                                {set.solutions.map((sol, j) => (
+                                  <span key={j} className="px-2 py-1 bg-white border border-black/5 rounded text-[10px] font-medium">{sol}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+
+                      {/* Client References Section */}
+                      <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
+                        <div className="flex items-center gap-2 text-black/40">
+                          <Users className="w-4 h-4" />
+                          <span className="text-[11px] font-bold uppercase tracking-widest">Client References</span>
+                        </div>
+                        <div className="space-y-4">
+                          {result?.client_references.map((ref, i) => (
+                            <div key={i} className="p-4 border border-black/5 rounded-2xl space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">{ref.industry}</span>
+                                <span className="text-[9px] font-medium px-2 py-0.5 bg-black/5 rounded-full">{ref.company_size}</span>
+                              </div>
+                              <p className="text-[11px] text-black/70 leading-relaxed italic">"{ref.success_story}"</p>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    </div>
+
+                    {/* Right Column: Price, TCO (col-span-6) */}
+                    <div className="col-span-12 lg:col-span-6 space-y-8">
+                      {/* Price of each solution Section */}
+                      <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
+                        <div className="flex items-center gap-2 text-black/40">
+                          <DollarSign className="w-4 h-4" />
+                          <span className="text-[11px] font-bold uppercase tracking-widest">Solution Pricing</span>
+                        </div>
+                        <div className="space-y-4">
+                          {result?.top_recommendations.map((rec, i) => (
+                            <div key={i} className="p-4 bg-black/5 rounded-2xl space-y-3">
+                              <div className="flex justify-between items-start">
+                                <h5 className="font-bold text-xs uppercase tracking-tight">{rec.solution_name}</h5>
+                                <span className="text-[10px] font-mono font-bold text-emerald-600">{rec.estimated_monthly_cost}</span>
                               </div>
                               <div className="space-y-1">
-                                <p className="font-bold uppercase tracking-widest text-black/30">Acceptance Criteria</p>
-                                <ul className="list-disc list-inside space-y-0.5 text-black/70">
-                                  {uc.acceptance_criteria.map((ac, j) => <li key={j}>{ac}</li>)}
-                                </ul>
+                                {rec.cost_breakdown.map((item, j) => (
+                                  <div key={j} className="flex justify-between text-[9px] text-black/40">
+                                    <span>{item}</span>
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="pt-6 border-t border-black/5">
-                        <div className="bg-black/5 rounded-2xl p-4 overflow-hidden cursor-zoom-in hover:bg-black/[0.07] transition-colors"
-                             onClick={() => setSelectedDiagram({ chart: result?.diagrams.use_case_diagram || '', title: 'Use Case Diagram' })}>
-                          <Mermaid chart={result?.diagrams.use_case_diagram || ''} />
+                          ))}
                         </div>
-                      </div>
-                    </section>
+                      </section>
 
-                    {/* Solution Set Section */}
-                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
-                      <div className="flex items-center gap-2 text-black/40">
-                        <Layers className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Solution Set</span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-4">
-                        {result?.solution_set.map((set, i) => (
-                          <div key={i} className="p-4 bg-black/5 rounded-2xl space-y-2">
-                            <h5 className="text-[10px] font-bold uppercase tracking-widest text-red-600">{set.category}</h5>
-                            <div className="flex flex-wrap gap-2">
-                              {set.solutions.map((sol, j) => (
-                                <span key={j} className="px-2 py-1 bg-white border border-black/5 rounded text-[10px] font-medium">{sol}</span>
-                              ))}
-                            </div>
+                      {/* Total Cost of Ownership Section */}
+                      <section className="bg-red-50 border border-red-100 rounded-3xl p-8 space-y-6">
+                        <div className="flex items-center gap-2 text-red-600/60">
+                          <Activity className="w-4 h-4" />
+                          <span className="text-[11px] font-bold uppercase tracking-widest">TCO Analysis</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Monthly Est.</p>
+                            <p className="text-lg font-black text-red-600">{result?.total_cost_of_ownership.total_monthly_estimate}</p>
                           </div>
-                        ))}
-                      </div>
-                    </section>
-
-                    {/* Client References Section */}
-                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
-                      <div className="flex items-center gap-2 text-black/40">
-                        <Users className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Client References</span>
-                      </div>
-                      <div className="space-y-4">
-                        {result?.client_references.map((ref, i) => (
-                          <div key={i} className="p-4 border border-black/5 rounded-2xl space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">{ref.industry}</span>
-                              <span className="text-[9px] font-medium px-2 py-0.5 bg-black/5 rounded-full">{ref.company_size}</span>
-                            </div>
-                            <p className="text-[11px] text-black/70 leading-relaxed italic">"{ref.success_story}"</p>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Setup Cost</p>
+                            <p className="text-lg font-black text-red-600">{result?.total_cost_of_ownership.one_time_setup_cost}</p>
                           </div>
-                        ))}
-                      </div>
-                    </section>
+                        </div>
+                        <div className="space-y-3 pt-4 border-t border-red-100">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">3-Year ROI</p>
+                            <p className="text-xs font-bold text-red-900">{result?.total_cost_of_ownership.three_year_roi}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Optimization</p>
+                            <p className="text-[10px] text-red-900/70 leading-relaxed">{result?.total_cost_of_ownership.cost_optimization_strategy}</p>
+                          </div>
+                        </div>
+                      </section>
+                    </div>
                   </div>
 
-                  {/* Center: Recommendation (col-span-3) */}
-                  <div className="col-span-12 lg:col-span-3 space-y-8">
-                    <section className="bg-black text-white rounded-3xl p-8 shadow-xl space-y-6 text-center h-full flex flex-col justify-center">
-                      <div className="flex items-center justify-center gap-2 text-white/40">
-                        <Rocket className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Core Recommendation</span>
-                      </div>
-                      <h3 className="text-3xl font-black tracking-tighter uppercase italic leading-none">
-                        {result?.recommendation}
-                      </h3>
-                      <div className="pt-6 border-t border-white/10">
-                        <p className="text-sm text-white/60 font-serif italic leading-relaxed">
-                          {result?.executive_summary}
-                        </p>
-                      </div>
-                    </section>
-                  </div>
-
-                  {/* Extreme Right: Technical Architecture, Price, TCO (col-span-4) */}
-                  <div className="col-span-12 lg:col-span-4 space-y-8">
-                    {/* Technical Architecture Section */}
-                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
-                      <div className="flex items-center gap-2 text-black/40">
-                        <Network className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Technical Architecture</span>
-                      </div>
-                      <div className="space-y-4">
-                        <p className="text-[11px] text-black/70 leading-relaxed">{result?.diagrams.architecture_definition}</p>
-                        <div className="bg-black/5 rounded-2xl p-4 overflow-hidden cursor-zoom-in hover:bg-black/[0.07] transition-colors"
-                             onClick={() => setSelectedDiagram({ chart: result?.diagrams.tech_architecture_diagram || '', title: 'Technical Architecture' })}>
-                          <Mermaid chart={result?.diagrams.tech_architecture_diagram || ''} />
-                        </div>
-                      </div>
-                    </section>
-
-                    {/* Price of each solution Section */}
-                    <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
-                      <div className="flex items-center gap-2 text-black/40">
-                        <DollarSign className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">Solution Pricing</span>
-                      </div>
-                      <div className="space-y-4">
-                        {result?.top_recommendations.map((rec, i) => (
-                          <div key={i} className="p-4 bg-black/5 rounded-2xl space-y-3">
-                            <div className="flex justify-between items-start">
-                              <h5 className="font-bold text-xs uppercase tracking-tight">{rec.solution_name}</h5>
-                              <span className="text-[10px] font-mono font-bold text-emerald-600">{rec.estimated_monthly_cost}</span>
-                            </div>
-                            <div className="space-y-1">
-                              {rec.cost_breakdown.map((item, j) => (
-                                <div key={j} className="flex justify-between text-[9px] text-black/40">
-                                  <span>{item}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-
-                    {/* Total Cost of Ownership Section */}
-                    <section className="bg-red-50 border border-red-100 rounded-3xl p-8 space-y-6">
-                      <div className="flex items-center gap-2 text-red-600/60">
-                        <Activity className="w-4 h-4" />
-                        <span className="text-[11px] font-bold uppercase tracking-widest">TCO Analysis</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Monthly Est.</p>
-                          <p className="text-lg font-black text-red-600">{result?.total_cost_of_ownership.total_monthly_estimate}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Setup Cost</p>
-                          <p className="text-lg font-black text-red-600">{result?.total_cost_of_ownership.one_time_setup_cost}</p>
-                        </div>
-                      </div>
-                      <div className="space-y-3 pt-4 border-t border-red-100">
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">3-Year ROI</p>
-                          <p className="text-xs font-bold text-red-900">{result?.total_cost_of_ownership.three_year_roi}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Optimization</p>
-                          <p className="text-[10px] text-red-900/70 leading-relaxed">{result?.total_cost_of_ownership.cost_optimization_strategy}</p>
-                        </div>
-                      </div>
-                    </section>
-                  </div>
+                  {/* Bottom: Core Recommendation (Full Width) */}
+                  <section className="bg-black text-white rounded-3xl p-12 shadow-xl space-y-8 text-center">
+                    <div className="flex items-center justify-center gap-2 text-white/40">
+                      <Rocket className="w-5 h-5" />
+                      <span className="text-xs font-bold uppercase tracking-widest">Core Strategic Recommendation</span>
+                    </div>
+                    <h3 className="text-4xl md:text-5xl font-black tracking-tighter uppercase italic leading-none">
+                      {result?.recommendation}
+                    </h3>
+                    <div className="pt-8 border-t border-white/10 max-w-3xl mx-auto">
+                      <p className="text-lg text-white/60 font-serif italic leading-relaxed">
+                        {result?.executive_summary}
+                      </p>
+                    </div>
+                  </section>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
       </main>
-      {/* Diagram Modal */}
-      <AnimatePresence>
-        {selectedDiagram && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-12 bg-black/80 backdrop-blur-sm"
-            onClick={() => setSelectedDiagram(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-6xl max-h-full overflow-hidden flex flex-col shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 border-b border-black/5 flex justify-between items-center">
-                <h3 className="font-bold text-lg">{selectedDiagram.title}</h3>
-                <button 
-                  onClick={() => setSelectedDiagram(null)}
-                  className="p-2 hover:bg-black/5 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-auto p-8 bg-black/[0.02] flex items-center justify-center">
-                <div className="w-full h-full min-h-[60vh]">
-                  <Mermaid chart={selectedDiagram.chart} />
-                </div>
-              </div>
-              <div className="p-4 bg-black/5 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-black/40">Click outside or press X to close</p>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Diagram Modal removed */}
     </div>
   );
 }

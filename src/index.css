@@ -5,10 +5,37 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-dashboard-bg: #E4E3E0;
+  --color-dashboard-ink: #141414;
+  --color-dashboard-line: #141414;
+  --font-dashboard-mono: 'Courier New', Courier, monospace;
 }
 
 @layer base {
   body {
-    @apply antialiased;
+    @apply antialiased bg-dashboard-bg text-dashboard-ink font-sans;
+  }
+}
+
+@layer components {
+  .dashboard-card {
+    @apply bg-white border border-dashboard-line rounded-none p-6 transition-all hover:bg-dashboard-ink hover:text-dashboard-bg;
+  }
+  
+  .dashboard-header {
+    @apply font-serif italic text-[11px] uppercase tracking-widest opacity-50 mb-4 block;
+  }
+  
+  .dashboard-value {
+    @apply font-mono text-xs tracking-tight;
+  }
+  
+  .dashboard-grid {
+    @apply border-t border-dashboard-line;
+  }
+  
+  .dashboard-row {
+    @apply border-b border-dashboard-line py-3 px-4 flex justify-between items-center transition-colors hover:bg-dashboard-ink hover:text-dashboard-bg cursor-default;
   }
 }
