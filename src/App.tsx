@@ -63,6 +63,7 @@ interface AnalysisResult {
   recommendation: string;
   total_cost_of_ownership: {
     total_monthly_estimate: string;
+    total_yearly_estimate: string;
     monthly_est_math_reasoning: string;
     monthly_breakdown: {
       category: string;
@@ -121,6 +122,7 @@ interface AnalysisResult {
     priority_timeline: string;
   }[];
   executive_summary: string;
+  technical_architecture_diagram: string;
 }
 
 interface HistoryItem {
@@ -847,6 +849,19 @@ export default function App() {
                           ))}
                         </div>
                       </section>
+
+                      {/* Technical Architecture Section */}
+                      <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
+                        <div className="flex items-center gap-2 text-black/40">
+                          <Network className="w-4 h-4" />
+                          <span className="text-[11px] font-bold uppercase tracking-widest">Technical Architecture</span>
+                        </div>
+                        <div className="p-6 bg-black rounded-2xl overflow-x-auto custom-scrollbar">
+                          <pre className="text-[10px] font-mono text-emerald-400 leading-tight">
+                            {result?.technical_architecture_diagram}
+                          </pre>
+                        </div>
+                      </section>
                     </div>
 
                     {/* Right Column: Solution Set & Pricing, TCO (col-span-7) */}
@@ -911,11 +926,17 @@ export default function App() {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          {/* Monthly Estimate */}
+                          {/* Monthly & Yearly Estimate */}
                           <div className="space-y-4">
-                            <div className="space-y-1">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Monthly Est.</p>
-                              <p className="text-2xl font-black text-red-600">{result?.total_cost_of_ownership.total_monthly_estimate}</p>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Monthly Est.</p>
+                                <p className="text-2xl font-black text-red-600">{result?.total_cost_of_ownership.total_monthly_estimate}</p>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Yearly Est.</p>
+                                <p className="text-2xl font-black text-red-600">{result?.total_cost_of_ownership.total_yearly_estimate}</p>
+                              </div>
                             </div>
                             <div className="space-y-3">
                               <div className="p-4 bg-white/50 rounded-xl border border-red-100">
@@ -1012,7 +1033,7 @@ export default function App() {
                       <Rocket className="w-5 h-5" />
                       <span className="text-xs font-bold uppercase tracking-widest">Core Strategic Recommendation</span>
                     </div>
-                    <h3 className="text-4xl md:text-5xl font-black tracking-tighter uppercase italic leading-none">
+                    <h3 className="text-2xl md:text-3xl font-black tracking-tighter uppercase italic leading-tight">
                       {result?.recommendation}
                     </h3>
                     <div className="pt-8 border-t border-white/10 max-w-3xl mx-auto">

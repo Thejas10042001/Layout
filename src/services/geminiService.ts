@@ -18,6 +18,7 @@ export const ARCHITECT_SCHEMA = {
       type: Type.OBJECT,
       properties: {
         total_monthly_estimate: { type: Type.STRING },
+        total_yearly_estimate: { type: Type.STRING },
         monthly_est_math_reasoning: { type: Type.STRING, description: "Detailed math and reasoning for monthly estimate." },
         monthly_breakdown: {
           type: Type.ARRAY,
@@ -63,7 +64,7 @@ export const ARCHITECT_SCHEMA = {
         optimization_judgment: { type: Type.STRING, description: "Expert judgment on the optimization strategy." },
       },
       required: [
-        "total_monthly_estimate", "monthly_est_math_reasoning", "monthly_breakdown",
+        "total_monthly_estimate", "total_yearly_estimate", "monthly_est_math_reasoning", "monthly_breakdown",
         "one_time_setup_cost", "setup_cost_math_reasoning", "setup_breakdown",
         "three_year_roi", "roi_math_reasoning", "roi_breakdown",
         "cost_optimization_strategy", "optimization_judgment"
@@ -145,8 +146,9 @@ export const ARCHITECT_SCHEMA = {
       },
     },
     executive_summary: { type: Type.STRING },
+    technical_architecture_diagram: { type: Type.STRING, description: "ASCII boxed reference architecture diagram." },
   },
-  required: ["client_snapshot", "recommendation", "total_cost_of_ownership", "solution_set", "client_references", "matched_use_cases", "executive_summary"],
+  required: ["client_snapshot", "recommendation", "total_cost_of_ownership", "solution_set", "client_references", "matched_use_cases", "executive_summary", "technical_architecture_diagram"],
 };
 
 export async function performOCR(base64Data: string, mimeType: string): Promise<string> {
@@ -250,19 +252,20 @@ Strategic Requirements:
    - Acceptance Criteria: Bullet list.
    - Priority + Timeline: Must-have vs nice-to-have, phases, stakeholders.
 
-2. Technical Architecture Definition: A textual description of the proposed architecture.
+2. Technical Architecture Definition: A textual description of the proposed architecture, followed by a Technical Architecture Diagram (ASCII boxed format).
 3. Solution Set & Pricing: Group proposed solutions by category. For EACH solution, provide:
    - Name: The specific AWS service or solution.
-   - Estimated Monthly Cost: A clear dollar amount.
+   - Estimated Monthly Cost: A clear dollar amount (round to the nearest whole number).
    - Pricing Reasoning: High-level explanation of the total cost.
-   - Cost Breakdown: A granular list of line items, each with its own cost and specific reasoning.
+   - Cost Breakdown: A granular list of line items, each with its own cost (rounded) and specific reasoning.
    - Detailed Explanation: In-depth description of how the solution works and its benefits.
 
 4. Client References: Provide industry-specific success stories.
 5. Total Cost of Ownership (TCO): Provide:
-   - Monthly Estimate: Total monthly cost with detailed math and reasoning, plus a granular breakdown of categories (e.g., Compute, Storage, Networking).
-   - Setup Cost: One-time costs with detailed math and reasoning, plus a granular breakdown of items (e.g., Migration, Training, Initial Configuration).
-   - 3-Year ROI: Calculation and reasoning for the return on investment, plus a granular breakdown of metrics (e.g., Cost Savings, Productivity Gains, Risk Reduction).
+   - Monthly Estimate: Total monthly cost (rounded) with detailed math and reasoning, plus a granular breakdown of categories.
+   - Yearly Estimate: Total yearly cost (rounded).
+   - Setup Cost: One-time costs (rounded) with detailed math and reasoning, plus a granular breakdown of items.
+   - 3-Year ROI: Calculation and reasoning for the return on investment, plus a granular breakdown of metrics.
    - Optimization Strategy: How to reduce costs over time.
    - Optimization Judgment: Expert judgment on the feasibility and impact of the strategy.
 
