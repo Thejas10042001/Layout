@@ -173,6 +173,7 @@ export default function App() {
   const [inputMode, setInputMode] = useState<'paste' | 'live'>('paste');
   const [livePerson1, setLivePerson1] = useState('');
   const [livePerson2, setLivePerson2] = useState('');
+  const [activeSpeaker, setActiveSpeaker] = useState<1 | 2>(1);
   const [isRecording, setIsRecording] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>(() => {
     const saved = localStorage.getItem('architect_history');
@@ -191,6 +192,65 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('architect_history', JSON.stringify(history));
   }, [history]);
+
+  useEffect(() => {
+    let recognition: any = null;
+    
+    if (isRecording) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        recognition.onresult = (event: any) => {
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
+          }
+          
+          if (finalTranscript) {
+            if (activeSpeaker === 1) {
+              setLivePerson1(prev => prev + (prev ? ' ' : '') + finalTranscript.trim());
+            } else {
+              setLivePerson2(prev => prev + (prev ? ' ' : '') + finalTranscript.trim());
+            }
+          }
+        };
+        
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error', event.error);
+          if (event.error !== 'no-speech') {
+            setIsRecording(false);
+          }
+        };
+        
+        recognition.onend = () => {
+          if (isRecording) {
+            try {
+              recognition.start();
+            } catch (e) {
+              // Ignore if already started
+            }
+          }
+        };
+        
+        recognition.start();
+      } else {
+        alert('Speech recognition is not supported in this browser.');
+        setIsRecording(false);
+      }
+    }
+    
+    return () => {
+      if (recognition) {
+        recognition.stop();
+      }
+    };
+  }, [isRecording, activeSpeaker]);
 
   const loadSample = () => {
     if (inputMode === 'paste') {
@@ -462,20 +522,44 @@ export default function App() {
                     />
                   ) : (
                     <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-1">Person 1 (Customer)</label>
+                      <div className={cn(
+                        "space-y-2 p-2 rounded-2xl transition-all border border-transparent",
+                        activeSpeaker === 1 && isRecording && "bg-red-50/50 border-red-100 shadow-sm"
+                      )}>
+                        <div className="flex justify-between items-center px-1">
+                          <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Person 1 (Customer)</label>
+                          {isRecording && activeSpeaker === 1 && (
+                            <div className="flex items-center gap-1">
+                              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                              <span className="text-[8px] font-bold text-red-500 uppercase tracking-widest">Listening</span>
+                            </div>
+                          )}
+                        </div>
                         <textarea
                           value={livePerson1}
                           onChange={(e) => setLivePerson1(e.target.value)}
+                          onFocus={() => setActiveSpeaker(1)}
                           placeholder="Customer speaking..."
                           className="w-full h-[140px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-1">Person 2 (Architect)</label>
+                      <div className={cn(
+                        "space-y-2 p-2 rounded-2xl transition-all border border-transparent",
+                        activeSpeaker === 2 && isRecording && "bg-red-50/50 border-red-100 shadow-sm"
+                      )}>
+                        <div className="flex justify-between items-center px-1">
+                          <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Person 2 (Architect)</label>
+                          {isRecording && activeSpeaker === 2 && (
+                            <div className="flex items-center gap-1">
+                              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                              <span className="text-[8px] font-bold text-red-500 uppercase tracking-widest">Listening</span>
+                            </div>
+                          )}
+                        </div>
                         <textarea
                           value={livePerson2}
                           onChange={(e) => setLivePerson2(e.target.value)}
+                          onFocus={() => setActiveSpeaker(2)}
                           placeholder="Architect speaking..."
                           className="w-full h-[140px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
                         />
@@ -484,11 +568,11 @@ export default function App() {
                         onClick={() => setIsRecording(!isRecording)}
                         className={cn(
                           "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border",
-                          isRecording ? "bg-red-50 border-red-200 text-red-600 animate-pulse" : "bg-black/5 border-transparent text-black/40 hover:bg-black/10"
+                          isRecording ? "bg-red-600 border-red-700 text-white shadow-lg shadow-red-500/20" : "bg-black/5 border-transparent text-black/40 hover:bg-black/10"
                         )}
                       >
                         {isRecording ? <Square className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
-                        {isRecording ? "Hands-free Active" : "Start Conversation"}
+                        {isRecording ? "Stop Listening" : "Start Real-time Transcription"}
                       </button>
                     </div>
                   )}

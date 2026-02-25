@@ -1,5 +1,5 @@
 {
   "name": "SPIKEDAI: Document Intelligence & Cloud Strategy",
   "description": "Enterprise document scraping and OCR for cloud modernization. Analyze chatlogs and documents from AWS, Salesforce, or Azure to generate structured cloud strategies.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["microphone"]
 }
