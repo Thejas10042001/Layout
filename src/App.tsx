@@ -170,7 +170,7 @@ Financial Constraints:
 export default function App() {
   const [transcript, setTranscript] = useState('');
   const [documentText, setDocumentText] = useState('');
-  const [inputMode, setInputMode] = useState<'paste' | 'live'>('paste');
+  const [inputMode, setInputMode] = useState<'paste' | 'live' | 'upload'>('paste');
   const [livePerson1, setLivePerson1] = useState('');
   const [livePerson2, setLivePerson2] = useState('');
   const [activeSpeaker, setActiveSpeaker] = useState<1 | 2>(1);
@@ -182,6 +182,7 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [isTranscriptLoading, setIsTranscriptLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocrError, setOcrError] = useState<string | null>(null);
@@ -318,8 +319,62 @@ export default function App() {
     }
   };
 
+  const handleTranscriptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsTranscriptLoading(true);
+    setError(null);
+    setTranscript('');
+
+    try {
+      if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.docx')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        const extractedText = result.value;
+        
+        if (!extractedText || extractedText.trim().length === 0) {
+          throw new Error('No text could be extracted from this Word document.');
+        }
+        
+        setTranscript(extractedText);
+      } else {
+        // For transcripts, we might also want to support text files or even images/PDFs if they are scans of transcripts
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const base64 = (reader.result as string).split(',')[1];
+            const extractedText = await performOCR(base64, file.type);
+            
+            if (!extractedText || extractedText.trim().length === 0) {
+              throw new Error('No text could be extracted from this document.');
+            }
+            
+            setTranscript(extractedText);
+          } catch (err: any) {
+            console.error(err);
+            setError(`Transcript Extraction Failed: ${err.message || 'Unknown error'}`);
+          } finally {
+            setIsTranscriptLoading(false);
+          }
+        };
+        reader.onerror = () => {
+          setError('Failed to read file.');
+          setIsTranscriptLoading(false);
+        };
+        reader.readAsDataURL(file);
+        return; // Exit early as reader.onload handles the rest
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(`An unexpected error occurred: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsTranscriptLoading(false);
+    }
+  };
+
   const handleAnalyze = async () => {
-    const finalTranscript = inputMode === 'paste' 
+    const finalTranscript = (inputMode === 'paste' || inputMode === 'upload')
       ? transcript 
       : `Customer: ${livePerson1}\nArchitect: ${livePerson2}`;
 
@@ -504,6 +559,12 @@ export default function App() {
                         Paste
                       </button>
                       <button 
+                        onClick={() => setInputMode('upload')}
+                        className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'upload' ? "bg-white shadow-sm text-black" : "text-black/40")}
+                      >
+                        Upload
+                      </button>
+                      <button 
                         onClick={() => setInputMode('live')}
                         className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'live' ? "bg-white shadow-sm text-black" : "text-black/40")}
                       >
@@ -520,6 +581,55 @@ export default function App() {
                       placeholder="Paste transcript here..."
                       className="w-full h-[300px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
                     />
+                  ) : inputMode === 'upload' ? (
+                    <div className="space-y-4">
+                      <div className={cn(
+                        "relative border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center text-center gap-4",
+                        transcript ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
+                      )}>
+                        {isTranscriptLoading ? (
+                          <Loader2 className="w-8 h-8 animate-spin text-black/20" />
+                        ) : transcript ? (
+                          <div className="flex flex-col items-center gap-3">
+                            <FileCheck className="w-8 h-8 text-emerald-600" />
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Transcript Loaded</p>
+                              <p className="text-[9px] text-emerald-600/60 font-medium">Ready for analysis</p>
+                            </div>
+                            <button 
+                              onClick={() => setTranscript('')}
+                              className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-4"
+                            >
+                              Clear and Re-upload
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center">
+                              <FileText className="w-6 h-6 text-black/20" />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-bold uppercase tracking-widest">Upload Transcript</p>
+                              <p className="text-[9px] text-black/40 font-medium">Support for .docx, .pdf, and images</p>
+                            </div>
+                            <label className="cursor-pointer bg-black text-white px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-black/90 transition-all shadow-lg shadow-black/10">
+                              Select File
+                              <input type="file" className="hidden" accept=".docx,application/pdf,image/*" onChange={handleTranscriptUpload} />
+                            </label>
+                          </>
+                        )}
+                      </div>
+                      {transcript && (
+                        <div className="space-y-2">
+                          <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-1">Extracted Content Preview</label>
+                          <textarea
+                            value={transcript}
+                            onChange={(e) => setTranscript(e.target.value)}
+                            className="w-full h-[150px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
+                          />
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <div className="space-y-4">
                       <div className={cn(
