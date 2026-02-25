@@ -14,28 +14,60 @@ export const ARCHITECT_SCHEMA = {
       required: ["organization_type", "technical_maturity_level"],
     },
     recommendation: { type: Type.STRING, description: "The central strategic recommendation." },
-    top_recommendations: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          solution_name: { type: Type.STRING },
-          estimated_monthly_cost: { type: Type.STRING },
-          cost_breakdown: { type: Type.ARRAY, items: { type: Type.STRING } },
-          business_value: { type: Type.STRING },
-        },
-        required: ["solution_name", "estimated_monthly_cost", "cost_breakdown", "business_value"],
-      },
-    },
     total_cost_of_ownership: {
       type: Type.OBJECT,
       properties: {
         total_monthly_estimate: { type: Type.STRING },
+        monthly_est_math_reasoning: { type: Type.STRING, description: "Detailed math and reasoning for monthly estimate." },
+        monthly_breakdown: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              category: { type: Type.STRING },
+              cost: { type: Type.STRING },
+              reasoning: { type: Type.STRING }
+            },
+            required: ["category", "cost", "reasoning"]
+          }
+        },
         one_time_setup_cost: { type: Type.STRING },
+        setup_cost_math_reasoning: { type: Type.STRING, description: "Detailed math and reasoning for setup cost." },
+        setup_breakdown: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              item: { type: Type.STRING },
+              cost: { type: Type.STRING },
+              reasoning: { type: Type.STRING }
+            },
+            required: ["item", "cost", "reasoning"]
+          }
+        },
         three_year_roi: { type: Type.STRING },
+        roi_math_reasoning: { type: Type.STRING, description: "Detailed math and reasoning for ROI calculation." },
+        roi_breakdown: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              metric: { type: Type.STRING },
+              value: { type: Type.STRING },
+              reasoning: { type: Type.STRING }
+            },
+            required: ["metric", "value", "reasoning"]
+          }
+        },
         cost_optimization_strategy: { type: Type.STRING },
+        optimization_judgment: { type: Type.STRING, description: "Expert judgment on the optimization strategy." },
       },
-      required: ["total_monthly_estimate", "one_time_setup_cost", "three_year_roi", "cost_optimization_strategy"],
+      required: [
+        "total_monthly_estimate", "monthly_est_math_reasoning", "monthly_breakdown",
+        "one_time_setup_cost", "setup_cost_math_reasoning", "setup_breakdown",
+        "three_year_roi", "roi_math_reasoning", "roi_breakdown",
+        "cost_optimization_strategy", "optimization_judgment"
+      ],
     },
     solution_set: {
       type: Type.ARRAY,
@@ -43,7 +75,32 @@ export const ARCHITECT_SCHEMA = {
         type: Type.OBJECT,
         properties: {
           category: { type: Type.STRING },
-          solutions: { type: Type.ARRAY, items: { type: Type.STRING } },
+          solutions: { 
+            type: Type.ARRAY, 
+            items: { 
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                estimated_monthly_cost: { type: Type.STRING },
+                pricing_reasoning: { type: Type.STRING, description: "Detailed reasoning for the total estimated price." },
+                cost_breakdown: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      item: { type: Type.STRING, description: "Specific line item (e.g., EC2 Instance, Data Transfer)." },
+                      cost: { type: Type.STRING, description: "Estimated monthly cost for this item." },
+                      reasoning: { type: Type.STRING, description: "Detailed reasoning for this specific line item cost." }
+                    },
+                    required: ["item", "cost", "reasoning"]
+                  },
+                  description: "Granular breakdown of costs for this solution."
+                },
+                detailed_explanation: { type: Type.STRING, description: "In-depth explanation of the solution." }
+              },
+              required: ["name", "estimated_monthly_cost", "pricing_reasoning", "cost_breakdown", "detailed_explanation"]
+            } 
+          },
         },
         required: ["category", "solutions"],
       },
@@ -68,20 +125,28 @@ export const ARCHITECT_SCHEMA = {
           title: { type: Type.STRING, description: "Verb + object + outcome" },
           client_statement: { type: Type.STRING, description: "2-3 sentences: what they're trying to do and why now" },
           who_where: { type: Type.STRING, description: "Personas, teams, environment" },
-          current_workflow: { type: Type.STRING, description: "Steps + pain points + leakage" },
-          desired_workflow: { type: Type.STRING, description: "Trigger -> steps -> decision points -> outputs" },
+          current_workflow_description: { type: Type.STRING, description: "High-level overview of the current process." },
+          current_workflow_steps: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Granular, sequential steps of the current workflow." },
+          potential_bottlenecks: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Specific pain points, delays, or failure points in the current workflow." },
+          desired_workflow_description: { type: Type.STRING, description: "High-level overview of the target state." },
+          desired_workflow_steps: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Granular, sequential steps of the modernized workflow." },
           data_integrations: { type: Type.STRING, description: "Inputs, outputs, permissions, frequency, latency" },
           value_metrics: { type: Type.STRING, description: "KPI targets + measurement method" },
           constraints_risks: { type: Type.STRING, description: "Compliance, security, adoption blockers" },
           acceptance_criteria: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Done when... bullet list" },
           priority_timeline: { type: Type.STRING, description: "Must-have vs nice-to-have, phases, stakeholders" },
         },
-        required: ["title", "client_statement", "who_where", "current_workflow", "desired_workflow", "data_integrations", "value_metrics", "constraints_risks", "acceptance_criteria", "priority_timeline"],
+        required: [
+          "title", "client_statement", "who_where", 
+          "current_workflow_description", "current_workflow_steps", "potential_bottlenecks",
+          "desired_workflow_description", "desired_workflow_steps",
+          "data_integrations", "value_metrics", "constraints_risks", "acceptance_criteria", "priority_timeline"
+        ],
       },
     },
     executive_summary: { type: Type.STRING },
   },
-  required: ["client_snapshot", "recommendation", "top_recommendations", "total_cost_of_ownership", "solution_set", "client_references", "matched_use_cases", "executive_summary"],
+  required: ["client_snapshot", "recommendation", "total_cost_of_ownership", "solution_set", "client_references", "matched_use_cases", "executive_summary"],
 };
 
 export async function performOCR(base64Data: string, mimeType: string): Promise<string> {
@@ -177,8 +242,8 @@ Strategic Requirements:
    - Title: Verb + object + outcome
    - Client Statement: 2-3 sentences on what they're trying to do.
    - Who/Where: Personas, teams, environment.
-   - Current Workflow: Steps, pain points, leakage.
-   - Desired Workflow: Trigger -> steps -> decision points -> outputs.
+   - Current Workflow: A high-level description, followed by granular, sequential steps and a list of specific potential bottlenecks.
+   - Desired Workflow: A high-level description of the target state, followed by granular, sequential steps of the modernized process.
    - Data & Integrations: Inputs, outputs, permissions, frequency, latency.
    - Value & Success Metrics: KPI targets + measurement method.
    - Constraints & Risks: Compliance, security, adoption blockers.
@@ -186,11 +251,22 @@ Strategic Requirements:
    - Priority + Timeline: Must-have vs nice-to-have, phases, stakeholders.
 
 2. Technical Architecture Definition: A textual description of the proposed architecture.
-3. Solution Set: Group proposed solutions by category.
+3. Solution Set & Pricing: Group proposed solutions by category. For EACH solution, provide:
+   - Name: The specific AWS service or solution.
+   - Estimated Monthly Cost: A clear dollar amount.
+   - Pricing Reasoning: High-level explanation of the total cost.
+   - Cost Breakdown: A granular list of line items, each with its own cost and specific reasoning.
+   - Detailed Explanation: In-depth description of how the solution works and its benefits.
+
 4. Client References: Provide industry-specific success stories.
-5. Price of each solution: Detailed AWS monthly costs for each recommendation.
-6. Total Cost of Ownership (TCO): Monthly estimate, setup cost, 3-year ROI, and optimization strategy.
-7. Recommendation: A single, central strategic recommendation.
+5. Total Cost of Ownership (TCO): Provide:
+   - Monthly Estimate: Total monthly cost with detailed math and reasoning, plus a granular breakdown of categories (e.g., Compute, Storage, Networking).
+   - Setup Cost: One-time costs with detailed math and reasoning, plus a granular breakdown of items (e.g., Migration, Training, Initial Configuration).
+   - 3-Year ROI: Calculation and reasoning for the return on investment, plus a granular breakdown of metrics (e.g., Cost Savings, Productivity Gains, Risk Reduction).
+   - Optimization Strategy: How to reduce costs over time.
+   - Optimization Judgment: Expert judgment on the feasibility and impact of the strategy.
+
+6. Recommendation: A single, central strategic recommendation.
 
 Output must be concise and executive-ready.`,
           },

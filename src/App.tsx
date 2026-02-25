@@ -61,21 +61,44 @@ interface AnalysisResult {
     technical_maturity_level: string;
   };
   recommendation: string;
-  top_recommendations: {
-    solution_name: string;
-    estimated_monthly_cost: string;
-    cost_breakdown: string[];
-    business_value: string;
-  }[];
   total_cost_of_ownership: {
     total_monthly_estimate: string;
+    monthly_est_math_reasoning: string;
+    monthly_breakdown: {
+      category: string;
+      cost: string;
+      reasoning: string;
+    }[];
     one_time_setup_cost: string;
+    setup_cost_math_reasoning: string;
+    setup_breakdown: {
+      item: string;
+      cost: string;
+      reasoning: string;
+    }[];
     three_year_roi: string;
+    roi_math_reasoning: string;
+    roi_breakdown: {
+      metric: string;
+      value: string;
+      reasoning: string;
+    }[];
     cost_optimization_strategy: string;
+    optimization_judgment: string;
   };
   solution_set: {
     category: string;
-    solutions: string[];
+    solutions: {
+      name: string;
+      estimated_monthly_cost: string;
+      pricing_reasoning: string;
+      cost_breakdown: {
+        item: string;
+        cost: string;
+        reasoning: string;
+      }[];
+      detailed_explanation: string;
+    }[];
   }[];
   client_references: {
     industry: string;
@@ -86,8 +109,11 @@ interface AnalysisResult {
     title: string;
     client_statement: string;
     who_where: string;
-    current_workflow: string;
-    desired_workflow: string;
+    current_workflow_description: string;
+    current_workflow_steps: string[];
+    potential_bottlenecks: string[];
+    desired_workflow_description: string;
+    desired_workflow_steps: string[];
     data_integrations: string;
     value_metrics: string;
     constraints_risks: string;
@@ -537,8 +563,8 @@ export default function App() {
                   className="space-y-8"
                 >
                   <div className="grid grid-cols-12 gap-8">
-                    {/* Left Column: Use Case, Solution Set, Client References (col-span-6) */}
-                    <div className="col-span-12 lg:col-span-6 space-y-8">
+                    {/* Left Column: Use Case, Client References (col-span-5) */}
+                    <div className="col-span-12 lg:col-span-5 space-y-8">
                       {/* Use Case Section */}
                       <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
                         <div className="flex items-center gap-2 text-black/40">
@@ -561,11 +587,31 @@ export default function App() {
                                 </div>
                                 <div className="space-y-1">
                                   <p className="font-bold uppercase tracking-widest text-black/30">Current Workflow</p>
-                                  <p className="text-black/70 leading-relaxed">{uc.current_workflow}</p>
+                                  <p className="text-black/70 leading-relaxed mb-2">{uc.current_workflow_description}</p>
+                                  <div className="space-y-2 pl-2 border-l border-black/5">
+                                    <div className="space-y-1">
+                                      <p className="text-[9px] font-bold uppercase tracking-widest text-black/20">Process Steps</p>
+                                      <ul className="list-decimal list-inside space-y-0.5 text-black/60">
+                                        {uc.current_workflow_steps.map((step, j) => <li key={j}>{step}</li>)}
+                                      </ul>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[9px] font-bold uppercase tracking-widest text-red-600/30">Potential Bottlenecks</p>
+                                      <ul className="list-disc list-inside space-y-0.5 text-red-600/60">
+                                        {uc.potential_bottlenecks.map((bn, j) => <li key={j}>{bn}</li>)}
+                                      </ul>
+                                    </div>
+                                  </div>
                                 </div>
                                 <div className="space-y-1">
                                   <p className="font-bold uppercase tracking-widest text-black/30">Desired Workflow</p>
-                                  <p className="text-black/70 leading-relaxed">{uc.desired_workflow}</p>
+                                  <p className="text-black/70 leading-relaxed mb-2">{uc.desired_workflow_description}</p>
+                                  <div className="space-y-1 pl-2 border-l border-black/5">
+                                    <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600/30">Modernized Steps</p>
+                                    <ul className="list-decimal list-inside space-y-0.5 text-emerald-600/60">
+                                      {uc.desired_workflow_steps.map((step, j) => <li key={j}>{step}</li>)}
+                                    </ul>
+                                  </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                   <div className="space-y-1">
@@ -583,26 +629,6 @@ export default function App() {
                                     {uc.acceptance_criteria.map((ac, j) => <li key={j}>{ac}</li>)}
                                   </ul>
                                 </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-
-                      {/* Solution Set Section */}
-                      <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
-                        <div className="flex items-center gap-2 text-black/40">
-                          <Layers className="w-4 h-4" />
-                          <span className="text-[11px] font-bold uppercase tracking-widest">Solution Set</span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4">
-                          {result?.solution_set.map((set, i) => (
-                            <div key={i} className="p-4 bg-black/5 rounded-2xl space-y-2">
-                              <h5 className="text-[10px] font-bold uppercase tracking-widest text-red-600">{set.category}</h5>
-                              <div className="flex flex-wrap gap-2">
-                                {set.solutions.map((sol, j) => (
-                                  <span key={j} className="px-2 py-1 bg-white border border-black/5 rounded text-[10px] font-medium">{sol}</span>
-                                ))}
                               </div>
                             </div>
                           ))}
@@ -629,25 +655,52 @@ export default function App() {
                       </section>
                     </div>
 
-                    {/* Right Column: Price, TCO (col-span-6) */}
-                    <div className="col-span-12 lg:col-span-6 space-y-8">
-                      {/* Price of each solution Section */}
+                    {/* Right Column: Solution Set & Pricing, TCO (col-span-7) */}
+                    <div className="col-span-12 lg:col-span-7 space-y-8">
+                      {/* Solution Set & Pricing Section */}
                       <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
                         <div className="flex items-center gap-2 text-black/40">
-                          <DollarSign className="w-4 h-4" />
-                          <span className="text-[11px] font-bold uppercase tracking-widest">Solution Pricing</span>
+                          <Layers className="w-4 h-4" />
+                          <span className="text-[11px] font-bold uppercase tracking-widest">Solution Set & Detailed Pricing</span>
                         </div>
-                        <div className="space-y-4">
-                          {result?.top_recommendations.map((rec, i) => (
-                            <div key={i} className="p-4 bg-black/5 rounded-2xl space-y-3">
-                              <div className="flex justify-between items-start">
-                                <h5 className="font-bold text-xs uppercase tracking-tight">{rec.solution_name}</h5>
-                                <span className="text-[10px] font-mono font-bold text-emerald-600">{rec.estimated_monthly_cost}</span>
-                              </div>
-                              <div className="space-y-1">
-                                {rec.cost_breakdown.map((item, j) => (
-                                  <div key={j} className="flex justify-between text-[9px] text-black/40">
-                                    <span>{item}</span>
+                        <div className="space-y-8">
+                          {result?.solution_set.map((set, i) => (
+                            <div key={i} className="space-y-4">
+                              <h5 className="text-xs font-black uppercase tracking-widest text-red-600 border-b border-red-100 pb-2">{set.category}</h5>
+                              <div className="grid grid-cols-1 gap-6">
+                                {set.solutions.map((sol, j) => (
+                                  <div key={j} className="p-6 bg-black/[0.02] border border-black/5 rounded-2xl space-y-4">
+                                    <div className="flex justify-between items-start">
+                                      <div className="space-y-1">
+                                        <h6 className="text-sm font-black uppercase tracking-tight">{sol.name}</h6>
+                                        <p className="text-[11px] text-black/60 leading-relaxed">{sol.detailed_explanation}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="text-xs font-mono font-bold text-emerald-600 block">{sol.estimated_monthly_cost}</span>
+                                        <span className="text-[9px] font-bold uppercase tracking-widest text-black/20">Monthly</span>
+                                      </div>
+                                    </div>
+                                    <div className="pt-4 border-t border-black/5 space-y-4">
+                                      <div className="space-y-1">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-black/30">Pricing Overview</p>
+                                        <p className="text-[11px] text-black/70 italic leading-relaxed">{sol.pricing_reasoning}</p>
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-black/30">Cost Breakdown</p>
+                                        <div className="space-y-2">
+                                          {sol.cost_breakdown.map((item, k) => (
+                                            <div key={k} className="p-3 bg-white border border-black/5 rounded-xl space-y-1">
+                                              <div className="flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-black/80">{item.item}</span>
+                                                <span className="text-[10px] font-mono font-bold text-emerald-600">{item.cost}</span>
+                                              </div>
+                                              <p className="text-[9px] text-black/40 leading-relaxed">{item.reasoning}</p>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -657,29 +710,102 @@ export default function App() {
                       </section>
 
                       {/* Total Cost of Ownership Section */}
-                      <section className="bg-red-50 border border-red-100 rounded-3xl p-8 space-y-6">
+                      <section className="bg-red-50 border border-red-100 rounded-3xl p-8 space-y-8">
                         <div className="flex items-center gap-2 text-red-600/60">
                           <Activity className="w-4 h-4" />
-                          <span className="text-[11px] font-bold uppercase tracking-widest">TCO Analysis</span>
+                          <span className="text-[11px] font-bold uppercase tracking-widest">TCO Analysis & Financial Reasoning</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Monthly Est.</p>
-                            <p className="text-lg font-black text-red-600">{result?.total_cost_of_ownership.total_monthly_estimate}</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          {/* Monthly Estimate */}
+                          <div className="space-y-4">
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Monthly Est.</p>
+                              <p className="text-2xl font-black text-red-600">{result?.total_cost_of_ownership.total_monthly_estimate}</p>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="p-4 bg-white/50 rounded-xl border border-red-100">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40 mb-2">Math & Reasoning</p>
+                                <p className="text-[11px] text-red-900/70 leading-relaxed">{result?.total_cost_of_ownership.monthly_est_math_reasoning}</p>
+                              </div>
+                              <div className="space-y-2">
+                                {result?.total_cost_of_ownership.monthly_breakdown.map((item, k) => (
+                                  <div key={k} className="p-3 bg-white/30 border border-red-100/50 rounded-lg flex justify-between items-start gap-4">
+                                    <div className="space-y-0.5">
+                                      <p className="text-[10px] font-bold text-red-900/80">{item.category}</p>
+                                      <p className="text-[9px] text-red-900/40 leading-tight">{item.reasoning}</p>
+                                    </div>
+                                    <span className="text-[10px] font-mono font-bold text-red-600 shrink-0">{item.cost}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                          <div className="space-y-1">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Setup Cost</p>
-                            <p className="text-lg font-black text-red-600">{result?.total_cost_of_ownership.one_time_setup_cost}</p>
+
+                          {/* Setup Cost */}
+                          <div className="space-y-4">
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Setup Cost</p>
+                              <p className="text-2xl font-black text-red-600">{result?.total_cost_of_ownership.one_time_setup_cost}</p>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="p-4 bg-white/50 rounded-xl border border-red-100">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40 mb-2">Math & Reasoning</p>
+                                <p className="text-[11px] text-red-900/70 leading-relaxed">{result?.total_cost_of_ownership.setup_cost_math_reasoning}</p>
+                              </div>
+                              <div className="space-y-2">
+                                {result?.total_cost_of_ownership.setup_breakdown.map((item, k) => (
+                                  <div key={k} className="p-3 bg-white/30 border border-red-100/50 rounded-lg flex justify-between items-start gap-4">
+                                    <div className="space-y-0.5">
+                                      <p className="text-[10px] font-bold text-red-900/80">{item.item}</p>
+                                      <p className="text-[9px] text-red-900/40 leading-tight">{item.reasoning}</p>
+                                    </div>
+                                    <span className="text-[10px] font-mono font-bold text-red-600 shrink-0">{item.cost}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div className="space-y-3 pt-4 border-t border-red-100">
-                          <div className="space-y-1">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">3-Year ROI</p>
-                            <p className="text-xs font-bold text-red-900">{result?.total_cost_of_ownership.three_year_roi}</p>
+
+                        <div className="space-y-6 pt-8 border-t border-red-100">
+                          {/* ROI */}
+                          <div className="space-y-4">
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">3-Year ROI Projection</p>
+                              <p className="text-xl font-black text-red-900">{result?.total_cost_of_ownership.three_year_roi}</p>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="p-4 bg-white/50 rounded-xl border border-red-100">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40 mb-2">ROI Reasoning</p>
+                                <p className="text-[11px] text-red-900/70 leading-relaxed">{result?.total_cost_of_ownership.roi_math_reasoning}</p>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {result?.total_cost_of_ownership.roi_breakdown.map((item, k) => (
+                                  <div key={k} className="p-3 bg-white/30 border border-red-100/50 rounded-lg space-y-1">
+                                    <div className="flex justify-between items-center">
+                                      <p className="text-[10px] font-bold text-red-900/80">{item.metric}</p>
+                                      <span className="text-[10px] font-mono font-bold text-red-600">{item.value}</span>
+                                    </div>
+                                    <p className="text-[9px] text-red-900/40 leading-tight">{item.reasoning}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                          <div className="space-y-1">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-red-900/40">Optimization</p>
-                            <p className="text-[10px] text-red-900/70 leading-relaxed">{result?.total_cost_of_ownership.cost_optimization_strategy}</p>
+
+                          {/* Optimization & Judgment */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Optimization Strategy</p>
+                              <p className="text-[11px] text-red-900/70 leading-relaxed">{result?.total_cost_of_ownership.cost_optimization_strategy}</p>
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-red-900/40">Expert Judgment</p>
+                              <div className="p-4 bg-red-600 text-white rounded-xl shadow-lg shadow-red-600/20">
+                                <p className="text-[11px] font-medium leading-relaxed italic">"{result?.total_cost_of_ownership.optimization_judgment}"</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </section>
