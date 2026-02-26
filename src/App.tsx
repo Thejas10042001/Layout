@@ -852,12 +852,25 @@ export default function App() {
 
                       {/* Technical Architecture Section */}
                       <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
-                        <div className="flex items-center gap-2 text-black/40">
-                          <Network className="w-4 h-4" />
-                          <span className="text-[11px] font-bold uppercase tracking-widest">Technical Architecture</span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-black/40">
+                            <Network className="w-4 h-4" />
+                            <span className="text-[11px] font-bold uppercase tracking-widest">Technical Architecture</span>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              if (result?.technical_architecture_diagram) {
+                                navigator.clipboard.writeText(result.technical_architecture_diagram);
+                              }
+                            }}
+                            className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black transition-colors flex items-center gap-1"
+                          >
+                            <FileText className="w-3 h-3" />
+                            Copy Diagram
+                          </button>
                         </div>
-                        <div className="p-6 bg-black rounded-2xl overflow-x-auto custom-scrollbar">
-                          <pre className="text-[10px] font-mono text-emerald-400 leading-tight">
+                        <div className="p-6 bg-black rounded-2xl overflow-x-auto custom-scrollbar relative group">
+                          <pre className="text-[9px] font-mono text-emerald-400 leading-[1.1] whitespace-pre">
                             {result?.technical_architecture_diagram}
                           </pre>
                         </div>

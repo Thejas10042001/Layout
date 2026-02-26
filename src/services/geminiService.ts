@@ -146,7 +146,7 @@ export const ARCHITECT_SCHEMA = {
       },
     },
     executive_summary: { type: Type.STRING },
-    technical_architecture_diagram: { type: Type.STRING, description: "ASCII boxed reference architecture diagram." },
+    technical_architecture_diagram: { type: Type.STRING, description: "Highly detailed ASCII boxed reference architecture diagram with inline explanations and service-level granularity." },
   },
   required: ["client_snapshot", "recommendation", "total_cost_of_ownership", "solution_set", "client_references", "matched_use_cases", "executive_summary", "technical_architecture_diagram"],
 };
@@ -252,7 +252,12 @@ Strategic Requirements:
    - Acceptance Criteria: Bullet list.
    - Priority + Timeline: Must-have vs nice-to-have, phases, stakeholders.
 
-2. Technical Architecture Definition: A textual description of the proposed architecture, followed by a Technical Architecture Diagram (ASCII boxed format).
+2. Technical Architecture Definition: Provide an advanced-level technical explanation of the proposed architecture, detailing the design patterns (e.g., Event-Driven, Microservices), security posture, and data flow. This must be followed by a highly detailed Technical Architecture Diagram in ASCII boxed format. The diagram MUST:
+   - Use boxes, arrows, and clear boundaries to show flow and relationships.
+   - Include specific service names (e.g., AWS Lambda, Amazon RDS, Amazon SQS).
+   - Label key components with their specific roles and advanced configurations (e.g., "Auth Layer - Cognito", "Data Persistence - DynamoDB with DAX").
+   - Include brief inline annotations or callouts within the ASCII structure to explain complex interactions (e.g., "Asynchronous Processing via SQS", "Multi-AZ for High Availability").
+   - Be comprehensive, covering ingestion, processing, storage, and security layers.
 3. Solution Set & Pricing: Group proposed solutions by category. For EACH solution, provide:
    - Name: The specific AWS service or solution.
    - Estimated Monthly Cost: A clear dollar amount (round to the nearest whole number).
