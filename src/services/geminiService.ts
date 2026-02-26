@@ -219,6 +219,46 @@ Return a JSON object with:
   }
 }
 
+export async function diarizeSpeaker(text: string, person1Context: string, person2Context: string): Promise<1 | 2> {
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: `Based on the following conversation context and the new text, determine who is the most likely speaker.
+            
+Person 1 (Customer) Context: ${person1Context}
+Person 2 (Architect) Context: ${person2Context}
+
+New Text: "${text}"
+
+Return a JSON object with "speaker": 1 or 2.`,
+          },
+        ],
+      },
+    ],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          speaker: { type: Type.INTEGER },
+        },
+        required: ["speaker"],
+      },
+    },
+  });
+
+  try {
+    const result = JSON.parse(response.text || '{"speaker": 1}');
+    return result.speaker === 2 ? 2 : 1;
+  } catch (e) {
+    return 1;
+  }
+}
+
 export async function analyzeTranscript(transcript: string, documentContext?: string) {
   const contextPrompt = documentContext 
     ? `Additional Document Context:

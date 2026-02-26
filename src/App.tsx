@@ -39,7 +39,7 @@ import {
   DollarSign,
   Activity
 } from 'lucide-react';
-import { analyzeTranscript, performOCR, validateDocumentMatch } from './services/geminiService';
+import { analyzeTranscript, performOCR, validateDocumentMatch, diarizeSpeaker } from './services/geminiService';
 import { cn } from './lib/utils';
 import mammoth from 'mammoth';
 import { 
@@ -172,9 +172,13 @@ Financial Constraints:
 export default function App() {
   const [transcript, setTranscript] = useState('');
   const [documentText, setDocumentText] = useState('');
+  const [documentName, setDocumentName] = useState('');
   const [inputMode, setInputMode] = useState<'paste' | 'live' | 'upload'>('paste');
   const [livePerson1, setLivePerson1] = useState('');
   const [livePerson2, setLivePerson2] = useState('');
+  const [person1VoiceSample, setPerson1VoiceSample] = useState<string | null>(null);
+  const [person2VoiceSample, setPerson2VoiceSample] = useState<string | null>(null);
+  const [isAutoDiarizationEnabled, setIsAutoDiarizationEnabled] = useState(false);
   const [activeSpeaker, setActiveSpeaker] = useState<1 | 2>(1);
   const [isRecording, setIsRecording] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -207,7 +211,7 @@ export default function App() {
         recognition.interimResults = true;
         recognition.lang = 'en-US';
         
-        recognition.onresult = (event: any) => {
+        recognition.onresult = async (event: any) => {
           let finalTranscript = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
             if (event.results[i].isFinal) {
@@ -216,7 +220,15 @@ export default function App() {
           }
           
           if (finalTranscript) {
-            if (activeSpeaker === 1) {
+            let targetSpeaker = activeSpeaker;
+            
+            if (isAutoDiarizationEnabled) {
+              // Smart Diarization: Guess speaker based on content
+              targetSpeaker = await diarizeSpeaker(finalTranscript, livePerson1, livePerson2);
+              setActiveSpeaker(targetSpeaker);
+            }
+
+            if (targetSpeaker === 1) {
               setLivePerson1(prev => prev + (prev ? ' ' : '') + finalTranscript.trim());
             } else {
               setLivePerson2(prev => prev + (prev ? ' ' : '') + finalTranscript.trim());
@@ -259,8 +271,8 @@ export default function App() {
     if (inputMode === 'paste') {
       setTranscript(SAMPLE_TRANSCRIPT);
     } else {
-      setLivePerson1("We're seeing 15-minute downtime windows every Tuesday during deployments. It's costing us about $50k per hour.");
-      setLivePerson2("Understood. AWS can help modernize this with a serverless architecture to eliminate that downtime.");
+      setLivePerson1("[Concerned Tone] We're seeing 15-minute downtime windows every Tuesday during deployments. It's costing us about $50k per hour.");
+      setLivePerson2("[Professional Tone] Understood. AWS can help modernize this with a serverless architecture to eliminate that downtime.");
     }
   };
   const loadSampleDoc = () => setDocumentText(SAMPLE_DOCUMENT);
@@ -272,6 +284,7 @@ export default function App() {
     setIsOcrLoading(true);
     setOcrError(null);
     setDocumentText('');
+    setDocumentName(file.name);
 
     try {
       if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.docx')) {
@@ -537,10 +550,16 @@ export default function App() {
                     {isOcrLoading ? (
                       <Loader2 className="w-5 h-5 animate-spin text-black/20" />
                     ) : documentText ? (
-                      <div className="flex items-center gap-2">
-                        <FileCheck className="w-4 h-4 text-emerald-600" />
-                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Loaded</span>
-                        <button onClick={() => setDocumentText('')}><X className="w-3 h-3 text-emerald-600" /></button>
+                      <div className="flex flex-col items-center gap-2 w-full">
+                        <div className="flex items-center gap-2">
+                          <FileCheck className="w-4 h-4 text-emerald-600" />
+                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest truncate max-w-[150px]">{documentName}</span>
+                          <button onClick={() => { setDocumentText(''); setDocumentName(''); }}><X className="w-3 h-3 text-emerald-600" /></button>
+                        </div>
+                        <div className="w-full p-2 bg-emerald-50/50 rounded-lg border border-emerald-100/50">
+                          <p className="text-[8px] font-bold uppercase tracking-widest text-emerald-800/40 mb-1">OCR Result Preview</p>
+                          <p className="text-[9px] text-emerald-900/60 line-clamp-2 text-left">{documentText}</p>
+                        </div>
                       </div>
                     ) : (
                       <label className="cursor-pointer bg-black/5 text-black/40 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-black/10 transition-all">
@@ -574,6 +593,11 @@ export default function App() {
                       </button>
                     </div>
                     <button onClick={loadSample} className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Sample</button>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-black/40 mt-2">
+                    <FileText className="w-3 h-3" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Transcript Section</span>
                   </div>
 
                   {inputMode === 'paste' ? (
@@ -634,16 +658,101 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="space-y-4">
+                      {/* Voice Profiles Section */}
+                      <div className="bg-black/5 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-black/40">
+                            <Users className="w-3 h-3" />
+                            <span className="text-[9px] font-bold uppercase tracking-widest">Voice Profiles</span>
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer group">
+                            <div className="flex flex-col items-end mr-1">
+                              <span className="text-[8px] font-bold uppercase tracking-widest text-black/40 group-hover:text-black transition-colors">Auto-Detect</span>
+                              <span className="text-[6px] font-bold uppercase tracking-widest text-emerald-500/60">Voice Tone AI</span>
+                            </div>
+                            <div 
+                              onClick={() => setIsAutoDiarizationEnabled(!isAutoDiarizationEnabled)}
+                              className={cn(
+                                "w-8 h-4.5 rounded-full transition-all relative",
+                                isAutoDiarizationEnabled ? "bg-emerald-500 shadow-sm shadow-emerald-500/20" : "bg-black/10"
+                              )}
+                            >
+                              <div className={cn(
+                                "absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all shadow-sm",
+                                isAutoDiarizationEnabled ? "left-4" : "left-0.5"
+                              )} />
+                            </div>
+                          </label>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <p className="text-[8px] font-bold uppercase tracking-widest text-black/30">Person 1</p>
+                            <label className={cn(
+                              "flex flex-col items-center justify-center p-2 border border-dashed rounded-xl cursor-pointer transition-all",
+                              person1VoiceSample ? "border-emerald-200 bg-emerald-50/30" : "border-black/10 hover:bg-black/5"
+                            )}>
+                              <Volume2 className={cn("w-3 h-3 mb-1", person1VoiceSample ? "text-emerald-500" : "text-black/20")} />
+                              <span className="text-[7px] font-bold uppercase tracking-widest text-black/40">
+                                {person1VoiceSample ? "Sample Loaded" : "Upload Voice"}
+                              </span>
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="audio/*" 
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = () => setPerson1VoiceSample(reader.result as string);
+                                    reader.readAsDataURL(file);
+                                  }
+                                }} 
+                              />
+                            </label>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-[8px] font-bold uppercase tracking-widest text-black/30">Person 2</p>
+                            <label className={cn(
+                              "flex flex-col items-center justify-center p-2 border border-dashed rounded-xl cursor-pointer transition-all",
+                              person2VoiceSample ? "border-emerald-200 bg-emerald-50/30" : "border-black/10 hover:bg-black/5"
+                            )}>
+                              <Volume2 className={cn("w-3 h-3 mb-1", person2VoiceSample ? "text-emerald-500" : "text-black/20")} />
+                              <span className="text-[7px] font-bold uppercase tracking-widest text-black/40">
+                                {person2VoiceSample ? "Sample Loaded" : "Upload Voice"}
+                              </span>
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="audio/*" 
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = () => setPerson2VoiceSample(reader.result as string);
+                                    reader.readAsDataURL(file);
+                                  }
+                                }} 
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className={cn(
                         "space-y-2 p-2 rounded-2xl transition-all border border-transparent",
                         activeSpeaker === 1 && isRecording && "bg-red-50/50 border-red-100 shadow-sm"
                       )}>
                         <div className="flex justify-between items-center px-1">
                           <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Person 1 (Customer)</label>
-                          {isRecording && activeSpeaker === 1 && (
-                            <div className="flex items-center gap-1">
-                              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                              <span className="text-[8px] font-bold text-red-500 uppercase tracking-widest">Listening</span>
+                          {isRecording && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 rounded-full border border-red-100">
+                              <div className="flex gap-0.5">
+                                <div className="w-0.5 h-2 bg-red-400 animate-[bounce_1s_infinite_0ms]" />
+                                <div className="w-0.5 h-3 bg-red-500 animate-[bounce_1s_infinite_200ms]" />
+                                <div className="w-0.5 h-2 bg-red-400 animate-[bounce_1s_infinite_400ms]" />
+                              </div>
+                              <span className="text-[7px] font-black text-red-600 uppercase tracking-widest">Analyzing Tone</span>
                             </div>
                           )}
                         </div>
