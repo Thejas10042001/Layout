@@ -181,6 +181,19 @@ export default function App() {
   const [isAutoDiarizationEnabled, setIsAutoDiarizationEnabled] = useState(false);
   const [activeSpeaker, setActiveSpeaker] = useState<1 | 2>(1);
   const [isRecording, setIsRecording] = useState(false);
+
+  // Refs for speech recognition to avoid effect restarts
+  const activeSpeakerRef = React.useRef(activeSpeaker);
+  const isAutoDiarizationEnabledRef = React.useRef(isAutoDiarizationEnabled);
+  const livePerson1Ref = React.useRef(livePerson1);
+  const livePerson2Ref = React.useRef(livePerson2);
+  const isRecordingRef = React.useRef(isRecording);
+
+  useEffect(() => { activeSpeakerRef.current = activeSpeaker; }, [activeSpeaker]);
+  useEffect(() => { isAutoDiarizationEnabledRef.current = isAutoDiarizationEnabled; }, [isAutoDiarizationEnabled]);
+  useEffect(() => { livePerson1Ref.current = livePerson1; }, [livePerson1]);
+  useEffect(() => { livePerson2Ref.current = livePerson2; }, [livePerson2]);
+  useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
   const [history, setHistory] = useState<HistoryItem[]>(() => {
     const saved = localStorage.getItem('architect_history');
     return saved ? JSON.parse(saved) : [];
@@ -202,6 +215,7 @@ export default function App() {
 
   useEffect(() => {
     let recognition: any = null;
+    let shouldRestart = true;
     
     if (isRecording) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -220,11 +234,11 @@ export default function App() {
           }
           
           if (finalTranscript) {
-            let targetSpeaker = activeSpeaker;
+            let targetSpeaker = activeSpeakerRef.current;
             
-            if (isAutoDiarizationEnabled) {
+            if (isAutoDiarizationEnabledRef.current) {
               // Smart Diarization: Guess speaker based on content
-              targetSpeaker = await diarizeSpeaker(finalTranscript, livePerson1, livePerson2);
+              targetSpeaker = await diarizeSpeaker(finalTranscript, livePerson1Ref.current, livePerson2Ref.current);
               setActiveSpeaker(targetSpeaker);
             }
 
@@ -238,13 +252,16 @@ export default function App() {
         
         recognition.onerror = (event: any) => {
           console.error('Speech recognition error', event.error);
+          // 'aborted' often happens when we stop it manually or it's interrupted
+          if (event.error === 'aborted') return;
+          
           if (event.error !== 'no-speech') {
             setIsRecording(false);
           }
         };
         
         recognition.onend = () => {
-          if (isRecording) {
+          if (isRecordingRef.current && shouldRestart) {
             try {
               recognition.start();
             } catch (e) {
@@ -261,11 +278,16 @@ export default function App() {
     }
     
     return () => {
+      shouldRestart = false;
       if (recognition) {
-        recognition.stop();
+        try {
+          recognition.stop();
+        } catch (e) {
+          // Ignore
+        }
       }
     };
-  }, [isRecording, activeSpeaker]);
+  }, [isRecording]);
 
   const loadSample = () => {
     if (inputMode === 'paste') {
