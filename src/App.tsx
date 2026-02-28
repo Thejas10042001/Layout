@@ -208,6 +208,7 @@ export default function App() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   useEffect(() => {
     localStorage.setItem('architect_history', JSON.stringify(history));
@@ -418,6 +419,7 @@ export default function App() {
     if (!finalTranscript.trim()) return;
     
     setIsAnalyzing(true);
+    setCurrentStep(2);
     setError(null);
     setValidationError(null);
     setProgress(0);
@@ -505,29 +507,352 @@ export default function App() {
           </div>
         </div>
       </header>
+      
+      {/* Step Navigation */}
+      <div className="max-w-7xl mx-auto px-6 pt-8 flex gap-4">
+        <button 
+          onClick={() => setCurrentStep(1)}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all border-2",
+            currentStep === 1 
+              ? "bg-black border-black text-white shadow-xl shadow-black/10 scale-[1.02]" 
+              : "bg-white border-black/5 text-black/30 hover:border-black/10 hover:text-black"
+          )}
+        >
+          <div className={cn(
+            "w-5 h-5 rounded-full flex items-center justify-center text-[10px]",
+            currentStep === 1 ? "bg-white text-black" : "bg-black/5 text-black/40"
+          )}>1</div>
+          Input & Context
+        </button>
+        <button 
+          onClick={() => setCurrentStep(2)}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all border-2",
+            currentStep === 2 
+              ? "bg-black border-black text-white shadow-xl shadow-black/10 scale-[1.02]" 
+              : "bg-white border-black/5 text-black/30 hover:border-black/10 hover:text-black"
+          )}
+        >
+          <div className={cn(
+            "w-5 h-5 rounded-full flex items-center justify-center text-[10px]",
+            currentStep === 2 ? "bg-white text-black" : "bg-black/5 text-black/40"
+          )}>2</div>
+          Analysis & History
+        </button>
+      </div>
 
       <main className="max-w-[1800px] mx-auto px-6 py-8">
-        <div className="grid grid-cols-12 gap-8 items-start">
-          
-          {/* Extreme Left: Input Section (col-span-3) */}
-          <div className="col-span-12 lg:col-span-3 space-y-6 lg:sticky lg:top-24">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-black/40">
-                <History className="w-4 h-4" />
-                <span className="text-[11px] font-bold uppercase tracking-widest">History</span>
-              </div>
-              <button 
-                onClick={() => setShowHistory(!showHistory)}
-                className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black transition-colors"
-              >
-                {showHistory ? 'Close' : 'View All'}
-              </button>
+        {currentStep === 1 ? (
+          <div className="max-w-5xl mx-auto space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Context (OCR) Section */}
+              <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-black/40">
+                    <Upload className="w-4 h-4" />
+                    <span className="text-[11px] font-bold uppercase tracking-widest">Context (OCR)</span>
+                  </div>
+                  <button onClick={loadSampleDoc} className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Sample Doc</button>
+                </div>
+                <div className={cn(
+                  "relative border-2 border-dashed rounded-2xl p-6 transition-all flex flex-col items-center justify-center text-center gap-4 min-h-[200px]",
+                  documentText ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
+                )}>
+                  {isOcrLoading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-black/20" />
+                  ) : documentText ? (
+                    <div className="flex flex-col items-center gap-3 w-full">
+                      <div className="flex items-center gap-2">
+                        <FileCheck className="w-5 h-5 text-emerald-600" />
+                        <span className="text-[12px] font-bold text-emerald-700 uppercase tracking-widest truncate max-w-[250px]">{documentName}</span>
+                        <button onClick={() => { setDocumentText(''); setDocumentName(''); }}><X className="w-4 h-4 text-emerald-600" /></button>
+                      </div>
+                      <div className="w-full p-4 bg-emerald-50/50 rounded-xl border border-emerald-100/50">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-800/40 mb-2">OCR Result Preview</p>
+                        <p className="text-[11px] text-emerald-900/60 line-clamp-6 text-left leading-relaxed">{documentText}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center">
+                        <Upload className="w-6 h-6 text-black/20" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest">Upload Context Document</p>
+                        <p className="text-[9px] text-black/40 font-medium">Support for Images, PDF, and Word</p>
+                      </div>
+                      <label className="cursor-pointer bg-black text-white px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-black/90 transition-all shadow-lg shadow-black/10">
+                        Select File
+                        <input type="file" className="hidden" accept="image/*,application/pdf,.docx" onChange={handleFileUpload} />
+                      </label>
+                    </>
+                  )}
+                </div>
+              </section>
+
+              {/* Transcript Section */}
+              <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex bg-black/5 p-1 rounded-lg">
+                    <button 
+                      onClick={() => setInputMode('paste')}
+                      className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'paste' ? "bg-white shadow-sm text-black" : "text-black/40")}
+                    >
+                      Paste
+                    </button>
+                    <button 
+                      onClick={() => setInputMode('upload')}
+                      className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'upload' ? "bg-white shadow-sm text-black" : "text-black/40")}
+                    >
+                      Upload
+                    </button>
+                    <button 
+                      onClick={() => setInputMode('live')}
+                      className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'live' ? "bg-white shadow-sm text-black" : "text-black/40")}
+                    >
+                      Live
+                    </button>
+                  </div>
+                  <button onClick={loadSample} className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Sample</button>
+                </div>
+
+                <div className="flex items-center gap-2 text-black/40 mt-2">
+                  <FileText className="w-3 h-3" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Transcript Section</span>
+                </div>
+
+                {inputMode === 'paste' ? (
+                  <textarea
+                    value={transcript}
+                    onChange={(e) => setTranscript(e.target.value)}
+                    placeholder="Paste transcript here..."
+                    className="w-full h-[300px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
+                  />
+                ) : inputMode === 'upload' ? (
+                  <div className="space-y-4">
+                    <div className={cn(
+                      "relative border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center text-center gap-4",
+                      transcript ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
+                    )}>
+                      {isTranscriptLoading ? (
+                        <Loader2 className="w-8 h-8 animate-spin text-black/20" />
+                      ) : transcript ? (
+                        <div className="flex flex-col items-center gap-3">
+                          <FileCheck className="w-8 h-8 text-emerald-600" />
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Transcript Loaded</p>
+                            <p className="text-[9px] text-emerald-600/60 font-medium">Ready for analysis</p>
+                          </div>
+                          <button 
+                            onClick={() => setTranscript('')}
+                            className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-4"
+                          >
+                            Clear and Re-upload
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-black/20" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-widest">Upload Transcript</p>
+                            <p className="text-[9px] text-black/40 font-medium">Support for .docx, .pdf, and images</p>
+                          </div>
+                          <label className="cursor-pointer bg-black text-white px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-black/90 transition-all shadow-lg shadow-black/10">
+                            Select File
+                            <input type="file" className="hidden" accept=".docx,application/pdf,image/*" onChange={handleTranscriptUpload} />
+                          </label>
+                        </>
+                      )}
+                    </div>
+                    {transcript && (
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-1">Extracted Content Preview</label>
+                        <textarea
+                          value={transcript}
+                          onChange={(e) => setTranscript(e.target.value)}
+                          className="w-full h-[150px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Voice Profiles Section */}
+                    <div className="bg-black/5 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-black/40">
+                          <Users className="w-3 h-3" />
+                          <span className="text-[9px] font-bold uppercase tracking-widest">Voice Profiles</span>
+                        </div>
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                          <div className="flex flex-col items-end mr-1">
+                            <span className="text-[8px] font-bold uppercase tracking-widest text-black/40 group-hover:text-black transition-colors">Auto-Detect</span>
+                            <span className="text-[6px] font-bold uppercase tracking-widest text-emerald-500/60">Voice Tone AI</span>
+                          </div>
+                          <div 
+                            onClick={() => setIsAutoDiarizationEnabled(!isAutoDiarizationEnabled)}
+                            className={cn(
+                              "w-8 h-4.5 rounded-full transition-all relative",
+                              isAutoDiarizationEnabled ? "bg-emerald-500 shadow-sm shadow-emerald-500/20" : "bg-black/10"
+                            )}
+                          >
+                            <div className={cn(
+                              "absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all shadow-sm",
+                              isAutoDiarizationEnabled ? "left-4" : "left-0.5"
+                            )} />
+                          </div>
+                        </label>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <p className="text-[8px] font-bold uppercase tracking-widest text-black/30">Person 1</p>
+                          <label className={cn(
+                            "flex flex-col items-center justify-center p-2 border border-dashed rounded-xl cursor-pointer transition-all",
+                            person1VoiceSample ? "border-emerald-200 bg-emerald-50/30" : "border-black/10 hover:bg-black/5"
+                          )}>
+                            <Volume2 className={cn("w-3 h-3 mb-1", person1VoiceSample ? "text-emerald-500" : "text-black/20")} />
+                            <span className="text-[7px] font-bold uppercase tracking-widest text-black/40">
+                              {person1VoiceSample ? "Sample Loaded" : "Upload Voice"}
+                            </span>
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              accept="audio/*" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = () => setPerson1VoiceSample(reader.result as string);
+                                  reader.readAsDataURL(file);
+                                }
+                              }} 
+                            />
+                          </label>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-[8px] font-bold uppercase tracking-widest text-black/30">Person 2</p>
+                          <label className={cn(
+                            "flex flex-col items-center justify-center p-2 border border-dashed rounded-xl cursor-pointer transition-all",
+                            person2VoiceSample ? "border-emerald-200 bg-emerald-50/30" : "border-black/10 hover:bg-black/5"
+                          )}>
+                            <Volume2 className={cn("w-3 h-3 mb-1", person2VoiceSample ? "text-emerald-500" : "text-black/20")} />
+                            <span className="text-[7px] font-bold uppercase tracking-widest text-black/40">
+                              {person2VoiceSample ? "Sample Loaded" : "Upload Voice"}
+                            </span>
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              accept="audio/*" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = () => setPerson2VoiceSample(reader.result as string);
+                                  reader.readAsDataURL(file);
+                                }
+                              }} 
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={cn(
+                      "space-y-2 p-2 rounded-2xl transition-all border border-transparent",
+                      activeSpeaker === 1 && isRecording && "bg-red-50/50 border-red-100 shadow-sm"
+                    )}>
+                      <div className="flex justify-between items-center px-1">
+                        <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Person 1 (Customer)</label>
+                        {isRecording && (
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 rounded-full border border-red-100">
+                            <div className="flex gap-0.5">
+                              <div className="w-0.5 h-2 bg-red-400 animate-[bounce_1s_infinite_0ms]" />
+                              <div className="w-0.5 h-3 bg-red-500 animate-[bounce_1s_infinite_200ms]" />
+                              <div className="w-0.5 h-2 bg-red-400 animate-[bounce_1s_infinite_400ms]" />
+                            </div>
+                            <span className="text-[7px] font-black text-red-600 uppercase tracking-widest">Analyzing Tone</span>
+                          </div>
+                        )}
+                      </div>
+                      <textarea
+                        value={livePerson1}
+                        onChange={(e) => setLivePerson1(e.target.value)}
+                        onFocus={() => setActiveSpeaker(1)}
+                        placeholder="Customer speaking..."
+                        className="w-full h-[140px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
+                      />
+                    </div>
+                    <div className={cn(
+                      "space-y-2 p-2 rounded-2xl transition-all border border-transparent",
+                      activeSpeaker === 2 && isRecording && "bg-red-50/50 border-red-100 shadow-sm"
+                    )}>
+                      <div className="flex justify-between items-center px-1">
+                        <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Person 2 (Architect)</label>
+                        {isRecording && activeSpeaker === 2 && (
+                          <div className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                            <span className="text-[8px] font-bold text-red-500 uppercase tracking-widest">Listening</span>
+                          </div>
+                        )}
+                      </div>
+                      <textarea
+                        value={livePerson2}
+                        onChange={(e) => setLivePerson2(e.target.value)}
+                        onFocus={() => setActiveSpeaker(2)}
+                        placeholder="Architect speaking..."
+                        className="w-full h-[140px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => setIsRecording(!isRecording)}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border",
+                        isRecording ? "bg-red-600 border-red-700 text-white shadow-lg shadow-red-500/20" : "bg-black/5 border-transparent text-black/40 hover:bg-black/10"
+                      )}
+                    >
+                      {isRecording ? <Square className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                      {isRecording ? "Stop Listening" : "Start Real-time Transcription"}
+                    </button>
+                  </div>
+                )}
+              </section>
             </div>
 
-            {showHistory ? (
-              <div className="bg-white border border-black/5 rounded-2xl p-4 space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+            <div className="max-w-xl mx-auto pt-8">
+              <button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing || isOcrLoading || (inputMode === 'paste' ? !transcript.trim() : (!livePerson1.trim() && !livePerson2.trim()))}
+                className={cn(
+                  "w-full flex items-center justify-center gap-3 px-8 py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all shadow-2xl",
+                  isAnalyzing ? "bg-black/10 text-black/40 cursor-not-allowed" : "bg-red-600 text-white hover:bg-red-700 active:scale-95 shadow-red-600/20"
+                )}
+              >
+                {isAnalyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                {isAnalyzing ? "Analyzing..." : "Generate Strategy"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-12 gap-8 items-start">
+            {/* Step 2 Left: History (col-span-3) */}
+            <div className="col-span-12 lg:col-span-3 space-y-6 lg:sticky lg:top-24">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-black/40">
+                  <History className="w-4 h-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-widest">History</span>
+                </div>
+              </div>
+
+              <div className="bg-white border border-black/5 rounded-3xl p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar shadow-sm">
                 {history.length === 0 ? (
-                  <p className="text-[10px] text-black/30 text-center py-8">No history yet</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                    <History className="w-8 h-8 text-black/5" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-black/20">No history yet</p>
+                  </div>
                 ) : (
                   history.map(item => (
                     <button
@@ -535,11 +860,13 @@ export default function App() {
                       onClick={() => {
                         setResult(item.result);
                         setTranscript(item.transcript);
-                        setShowHistory(false);
                       }}
-                      className="w-full text-left p-3 hover:bg-black/5 rounded-xl transition-all border border-transparent hover:border-black/5 group"
+                      className={cn(
+                        "w-full text-left p-4 hover:bg-black/5 rounded-2xl transition-all border group",
+                        result?.recommendation === item.result.recommendation ? "bg-black/5 border-black/10" : "border-transparent"
+                      )}
                     >
-                      <div className="flex justify-between items-start mb-1">
+                      <div className="flex justify-between items-start mb-2">
                         <span className="text-[9px] font-mono text-black/40">{new Date(item.timestamp).toLocaleDateString()}</span>
                         <Trash2 
                           className="w-3 h-3 text-black/0 group-hover:text-red-400 transition-colors"
@@ -549,295 +876,16 @@ export default function App() {
                           }}
                         />
                       </div>
-                      <p className="text-[10px] font-bold line-clamp-1">{item.result.recommendation}</p>
-                      <p className="text-[9px] text-black/40 line-clamp-2 mt-1">{item.transcript}</p>
+                      <p className="text-[10px] font-black uppercase tracking-tight line-clamp-1">{item.result.recommendation}</p>
+                      <p className="text-[9px] text-black/40 line-clamp-2 mt-1 font-medium">{item.transcript}</p>
                     </button>
                   ))
                 )}
               </div>
-            ) : (
-              <>
-                <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-black/40">
-                      <Upload className="w-4 h-4" />
-                      <span className="text-[11px] font-bold uppercase tracking-widest">Context (OCR)</span>
-                    </div>
-                    <button onClick={loadSampleDoc} className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Sample Doc</button>
-                  </div>
-                  <div className={cn(
-                    "relative border-2 border-dashed rounded-2xl p-4 transition-all flex flex-col items-center justify-center text-center gap-3",
-                    documentText ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
-                  )}>
-                    {isOcrLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-black/20" />
-                    ) : documentText ? (
-                      <div className="flex flex-col items-center gap-2 w-full">
-                        <div className="flex items-center gap-2">
-                          <FileCheck className="w-4 h-4 text-emerald-600" />
-                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest truncate max-w-[150px]">{documentName}</span>
-                          <button onClick={() => { setDocumentText(''); setDocumentName(''); }}><X className="w-3 h-3 text-emerald-600" /></button>
-                        </div>
-                        <div className="w-full p-2 bg-emerald-50/50 rounded-lg border border-emerald-100/50">
-                          <p className="text-[8px] font-bold uppercase tracking-widest text-emerald-800/40 mb-1">OCR Result Preview</p>
-                          <p className="text-[9px] text-emerald-900/60 line-clamp-2 text-left">{documentText}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <label className="cursor-pointer bg-black/5 text-black/40 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-black/10 transition-all">
-                        Upload Context
-                        <input type="file" className="hidden" accept="image/*,application/pdf,.docx" onChange={handleFileUpload} />
-                      </label>
-                    )}
-                  </div>
-                </section>
+            </div>
 
-                <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex bg-black/5 p-1 rounded-lg">
-                      <button 
-                        onClick={() => setInputMode('paste')}
-                        className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'paste' ? "bg-white shadow-sm text-black" : "text-black/40")}
-                      >
-                        Paste
-                      </button>
-                      <button 
-                        onClick={() => setInputMode('upload')}
-                        className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'upload' ? "bg-white shadow-sm text-black" : "text-black/40")}
-                      >
-                        Upload
-                      </button>
-                      <button 
-                        onClick={() => setInputMode('live')}
-                        className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'live' ? "bg-white shadow-sm text-black" : "text-black/40")}
-                      >
-                        Live
-                      </button>
-                    </div>
-                    <button onClick={loadSample} className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Sample</button>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-black/40 mt-2">
-                    <FileText className="w-3 h-3" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">Transcript Section</span>
-                  </div>
-
-                  {inputMode === 'paste' ? (
-                    <textarea
-                      value={transcript}
-                      onChange={(e) => setTranscript(e.target.value)}
-                      placeholder="Paste transcript here..."
-                      className="w-full h-[300px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
-                    />
-                  ) : inputMode === 'upload' ? (
-                    <div className="space-y-4">
-                      <div className={cn(
-                        "relative border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center text-center gap-4",
-                        transcript ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
-                      )}>
-                        {isTranscriptLoading ? (
-                          <Loader2 className="w-8 h-8 animate-spin text-black/20" />
-                        ) : transcript ? (
-                          <div className="flex flex-col items-center gap-3">
-                            <FileCheck className="w-8 h-8 text-emerald-600" />
-                            <div className="space-y-1">
-                              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Transcript Loaded</p>
-                              <p className="text-[9px] text-emerald-600/60 font-medium">Ready for analysis</p>
-                            </div>
-                            <button 
-                              onClick={() => setTranscript('')}
-                              className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-4"
-                            >
-                              Clear and Re-upload
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center">
-                              <FileText className="w-6 h-6 text-black/20" />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-[10px] font-bold uppercase tracking-widest">Upload Transcript</p>
-                              <p className="text-[9px] text-black/40 font-medium">Support for .docx, .pdf, and images</p>
-                            </div>
-                            <label className="cursor-pointer bg-black text-white px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-black/90 transition-all shadow-lg shadow-black/10">
-                              Select File
-                              <input type="file" className="hidden" accept=".docx,application/pdf,image/*" onChange={handleTranscriptUpload} />
-                            </label>
-                          </>
-                        )}
-                      </div>
-                      {transcript && (
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-1">Extracted Content Preview</label>
-                          <textarea
-                            value={transcript}
-                            onChange={(e) => setTranscript(e.target.value)}
-                            className="w-full h-[150px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Voice Profiles Section */}
-                      <div className="bg-black/5 rounded-2xl p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-black/40">
-                            <Users className="w-3 h-3" />
-                            <span className="text-[9px] font-bold uppercase tracking-widest">Voice Profiles</span>
-                          </div>
-                          <label className="flex items-center gap-2 cursor-pointer group">
-                            <div className="flex flex-col items-end mr-1">
-                              <span className="text-[8px] font-bold uppercase tracking-widest text-black/40 group-hover:text-black transition-colors">Auto-Detect</span>
-                              <span className="text-[6px] font-bold uppercase tracking-widest text-emerald-500/60">Voice Tone AI</span>
-                            </div>
-                            <div 
-                              onClick={() => setIsAutoDiarizationEnabled(!isAutoDiarizationEnabled)}
-                              className={cn(
-                                "w-8 h-4.5 rounded-full transition-all relative",
-                                isAutoDiarizationEnabled ? "bg-emerald-500 shadow-sm shadow-emerald-500/20" : "bg-black/10"
-                              )}
-                            >
-                              <div className={cn(
-                                "absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all shadow-sm",
-                                isAutoDiarizationEnabled ? "left-4" : "left-0.5"
-                              )} />
-                            </div>
-                          </label>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-2">
-                            <p className="text-[8px] font-bold uppercase tracking-widest text-black/30">Person 1</p>
-                            <label className={cn(
-                              "flex flex-col items-center justify-center p-2 border border-dashed rounded-xl cursor-pointer transition-all",
-                              person1VoiceSample ? "border-emerald-200 bg-emerald-50/30" : "border-black/10 hover:bg-black/5"
-                            )}>
-                              <Volume2 className={cn("w-3 h-3 mb-1", person1VoiceSample ? "text-emerald-500" : "text-black/20")} />
-                              <span className="text-[7px] font-bold uppercase tracking-widest text-black/40">
-                                {person1VoiceSample ? "Sample Loaded" : "Upload Voice"}
-                              </span>
-                              <input 
-                                type="file" 
-                                className="hidden" 
-                                accept="audio/*" 
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = () => setPerson1VoiceSample(reader.result as string);
-                                    reader.readAsDataURL(file);
-                                  }
-                                }} 
-                              />
-                            </label>
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-[8px] font-bold uppercase tracking-widest text-black/30">Person 2</p>
-                            <label className={cn(
-                              "flex flex-col items-center justify-center p-2 border border-dashed rounded-xl cursor-pointer transition-all",
-                              person2VoiceSample ? "border-emerald-200 bg-emerald-50/30" : "border-black/10 hover:bg-black/5"
-                            )}>
-                              <Volume2 className={cn("w-3 h-3 mb-1", person2VoiceSample ? "text-emerald-500" : "text-black/20")} />
-                              <span className="text-[7px] font-bold uppercase tracking-widest text-black/40">
-                                {person2VoiceSample ? "Sample Loaded" : "Upload Voice"}
-                              </span>
-                              <input 
-                                type="file" 
-                                className="hidden" 
-                                accept="audio/*" 
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = () => setPerson2VoiceSample(reader.result as string);
-                                    reader.readAsDataURL(file);
-                                  }
-                                }} 
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className={cn(
-                        "space-y-2 p-2 rounded-2xl transition-all border border-transparent",
-                        activeSpeaker === 1 && isRecording && "bg-red-50/50 border-red-100 shadow-sm"
-                      )}>
-                        <div className="flex justify-between items-center px-1">
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Person 1 (Customer)</label>
-                          {isRecording && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 rounded-full border border-red-100">
-                              <div className="flex gap-0.5">
-                                <div className="w-0.5 h-2 bg-red-400 animate-[bounce_1s_infinite_0ms]" />
-                                <div className="w-0.5 h-3 bg-red-500 animate-[bounce_1s_infinite_200ms]" />
-                                <div className="w-0.5 h-2 bg-red-400 animate-[bounce_1s_infinite_400ms]" />
-                              </div>
-                              <span className="text-[7px] font-black text-red-600 uppercase tracking-widest">Analyzing Tone</span>
-                            </div>
-                          )}
-                        </div>
-                        <textarea
-                          value={livePerson1}
-                          onChange={(e) => setLivePerson1(e.target.value)}
-                          onFocus={() => setActiveSpeaker(1)}
-                          placeholder="Customer speaking..."
-                          className="w-full h-[140px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
-                        />
-                      </div>
-                      <div className={cn(
-                        "space-y-2 p-2 rounded-2xl transition-all border border-transparent",
-                        activeSpeaker === 2 && isRecording && "bg-red-50/50 border-red-100 shadow-sm"
-                      )}>
-                        <div className="flex justify-between items-center px-1">
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Person 2 (Architect)</label>
-                          {isRecording && activeSpeaker === 2 && (
-                            <div className="flex items-center gap-1">
-                              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                              <span className="text-[8px] font-bold text-red-500 uppercase tracking-widest">Listening</span>
-                            </div>
-                          )}
-                        </div>
-                        <textarea
-                          value={livePerson2}
-                          onChange={(e) => setLivePerson2(e.target.value)}
-                          onFocus={() => setActiveSpeaker(2)}
-                          placeholder="Architect speaking..."
-                          className="w-full h-[140px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
-                        />
-                      </div>
-                      <button 
-                        onClick={() => setIsRecording(!isRecording)}
-                        className={cn(
-                          "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border",
-                          isRecording ? "bg-red-600 border-red-700 text-white shadow-lg shadow-red-500/20" : "bg-black/5 border-transparent text-black/40 hover:bg-black/10"
-                        )}
-                      >
-                        {isRecording ? <Square className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
-                        {isRecording ? "Stop Listening" : "Start Real-time Transcription"}
-                      </button>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleAnalyze}
-                    disabled={isAnalyzing || isOcrLoading || (inputMode === 'paste' ? !transcript.trim() : (!livePerson1.trim() && !livePerson2.trim()))}
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-lg",
-                      isAnalyzing ? "bg-black/10 text-black/40 cursor-not-allowed" : "bg-black text-white hover:bg-black/90 active:scale-95"
-                    )}
-                  >
-                    {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    {isAnalyzing ? "Analyzing..." : "Generate Strategy"}
-                  </button>
-                </section>
-              </>
-            )}
-          </div>
-
-          {/* Result Section */}
-          <div className="col-span-12 lg:col-span-9">
+            {/* Step 2 Right: Result Section (col-span-9) */}
+            <div className="col-span-12 lg:col-span-9">
             <AnimatePresence mode="wait">
               {!result && !isAnalyzing ? (
                 <motion.div 
@@ -1191,7 +1239,8 @@ export default function App() {
             </AnimatePresence>
           </div>
         </div>
-      </main>
+      )}
+    </main>
       {/* Diagram Modal removed */}
     </div>
   );
