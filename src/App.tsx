@@ -173,7 +173,8 @@ export default function App() {
   const [transcript, setTranscript] = useState('');
   const [documentText, setDocumentText] = useState('');
   const [documentName, setDocumentName] = useState('');
-  const [inputMode, setInputMode] = useState<'paste' | 'live' | 'upload'>('paste');
+  const [inputMode, setInputMode] = useState<'paste' | 'live' | 'upload' | 'spiked'>('paste');
+  const [isSpikedLoading, setIsSpikedLoading] = useState(false);
   const [livePerson1, setLivePerson1] = useState('');
   const [livePerson2, setLivePerson2] = useState('');
   const [person1VoiceSample, setPerson1VoiceSample] = useState<string | null>(null);
@@ -613,6 +614,12 @@ export default function App() {
                     >
                       Live
                     </button>
+                    <button 
+                      onClick={() => setInputMode('spiked')}
+                      className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'spiked' ? "bg-white shadow-sm text-black" : "text-black/40")}
+                    >
+                      Connect with Spiked
+                    </button>
                   </div>
                   <button onClick={loadSample} className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Sample</button>
                 </div>
@@ -678,7 +685,7 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                ) : (
+                ) : inputMode === 'live' ? (
                   <div className="space-y-4">
                     {/* Voice Profiles Section */}
                     <div className="bg-black/5 rounded-2xl p-4 space-y-3">
@@ -817,6 +824,75 @@ export default function App() {
                       {isRecording ? <Square className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
                       {isRecording ? "Stop Listening" : "Start Real-time Transcription"}
                     </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className={cn(
+                      "relative border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center text-center gap-6",
+                      transcript ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
+                    )}>
+                      {isSpikedLoading ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <Loader2 className="w-10 h-10 animate-spin text-red-600" />
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 animate-pulse">Establishing Secure Connection...</p>
+                        </div>
+                      ) : transcript ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+                            <FileCheck className="w-8 h-8 text-emerald-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">Spiked Intelligence Connected</p>
+                            <p className="text-[9px] text-emerald-600/60 font-bold uppercase tracking-widest">Transcript Synchronized</p>
+                          </div>
+                          <button 
+                            onClick={() => setTranscript('')}
+                            className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-8"
+                          >
+                            Disconnect and Clear
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center shadow-xl shadow-red-500/20 rotate-3">
+                            <span className="text-white font-black text-3xl">!</span>
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className="text-[12px] font-black uppercase tracking-[0.1em]">Connect with Spiked</h3>
+                            <p className="text-[10px] text-black/40 font-medium max-w-[200px] mx-auto leading-relaxed">
+                              Securely bridge your meeting intelligence and transfer transcripts for cognitive analysis.
+                            </p>
+                          </div>
+                          <button 
+                            onClick={async () => {
+                              setIsSpikedLoading(true);
+                              // Simulate connection and transfer
+                              await new Promise(r => setTimeout(r, 2000));
+                              setTranscript(SAMPLE_TRANSCRIPT);
+                              setIsSpikedLoading(false);
+                            }}
+                            className="bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95"
+                          >
+                            Connect & Transfer
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    {transcript && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between px-1">
+                          <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Synchronized Transcript</label>
+                          <span className="text-[8px] font-bold uppercase tracking-widest text-emerald-500 flex items-center gap-1">
+                            <Activity className="w-2 h-2" /> Live Link
+                          </span>
+                        </div>
+                        <textarea
+                          value={transcript}
+                          onChange={(e) => setTranscript(e.target.value)}
+                          className="w-full h-[200px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
