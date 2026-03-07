@@ -248,6 +248,7 @@ export default function App() {
   const [documentName, setDocumentName] = useState('');
   const [inputMode, setInputMode] = useState<'paste' | 'live' | 'upload' | 'spiked'>('paste');
   const [isSpikedLoading, setIsSpikedLoading] = useState(false);
+  const [spikedConnectionStatus, setSpikedConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [spikedTranscript, setSpikedTranscript] = useState<TranscriptSegment[]>([]);
   const [livePerson1, setLivePerson1] = useState('');
   const [livePerson2, setLivePerson2] = useState('');
@@ -287,6 +288,7 @@ export default function App() {
 
   const loadSpikedTranscript = async () => {
     setIsSpikedLoading(true);
+    setSpikedConnectionStatus('connecting');
     try {
       // Strategy 1: Check multiple session storage keys used by SpikedAI
       const storageKeys = [
@@ -308,6 +310,7 @@ export default function App() {
             if (Array.isArray(parsed) && parsed.length > 0) {
               setSpikedTranscript(parsed);
               setIsSpikedLoading(false);
+              setSpikedConnectionStatus('connected');
               return;
             }
           } catch (e) {}
@@ -325,6 +328,7 @@ export default function App() {
           );
           setSpikedTranscript(bestEntry.data);
           setIsSpikedLoading(false);
+          setSpikedConnectionStatus('connected');
           return;
         }
       }
@@ -335,9 +339,11 @@ export default function App() {
         return { id: i, start: i * 10, end: (i + 1) * 10, speaker: speaker || 'Unknown', text: text.join(': ') || line };
       });
       setSpikedTranscript(sampleSegments);
+      setSpikedConnectionStatus('error');
       
     } catch (e) {
       console.error("Load error", e);
+      setSpikedConnectionStatus('error');
     } finally {
       setIsSpikedLoading(false);
     }
@@ -1061,12 +1067,34 @@ export default function App() {
                               Securely bridge your meeting intelligence and transfer transcripts for cognitive analysis.
                             </p>
                           </div>
-                          <button 
-                            onClick={loadSpikedTranscript}
-                            className="bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95"
-                          >
-                            Connect & Transfer
-                          </button>
+                          <div className="flex flex-col items-center gap-4">
+                            <button 
+                              onClick={loadSpikedTranscript}
+                              className="bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95"
+                            >
+                              Connect & Transfer
+                            </button>
+                            {spikedConnectionStatus !== 'idle' && (
+                              <div className="flex items-center gap-2">
+                                <div className={cn(
+                                  "w-1.5 h-1.5 rounded-full",
+                                  spikedConnectionStatus === 'connecting' && "bg-amber-400 animate-pulse",
+                                  spikedConnectionStatus === 'connected' && "bg-emerald-500",
+                                  spikedConnectionStatus === 'error' && "bg-red-500"
+                                )} />
+                                <span className={cn(
+                                  "text-[9px] font-bold uppercase tracking-widest",
+                                  spikedConnectionStatus === 'connecting' && "text-amber-600",
+                                  spikedConnectionStatus === 'connected' && "text-emerald-600",
+                                  spikedConnectionStatus === 'error' && "text-red-600"
+                                )}>
+                                  {spikedConnectionStatus === 'connecting' && "Connecting..."}
+                                  {spikedConnectionStatus === 'connected' && "Connected"}
+                                  {spikedConnectionStatus === 'error' && "Error: No Live Data Found"}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </>
                       )}
                     </div>
