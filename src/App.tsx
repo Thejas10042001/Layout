@@ -250,6 +250,8 @@ export default function App() {
   const [isSpikedLoading, setIsSpikedLoading] = useState(false);
   const [spikedConnectionStatus, setSpikedConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [spikedTranscript, setSpikedTranscript] = useState<TranscriptSegment[]>([]);
+  const [recallBotId, setRecallBotId] = useState<string | null>(null);
+  const [recallMeetingUrl, setRecallMeetingUrl] = useState('');
   const [livePerson1, setLivePerson1] = useState('');
   const [livePerson2, setLivePerson2] = useState('');
   const [person1VoiceSample, setPerson1VoiceSample] = useState<string | null>(null);
@@ -287,6 +289,33 @@ export default function App() {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   const loadSpikedTranscript = async () => {
+    if (recallMeetingUrl) {
+      // Real Recall.ai Integration
+      setIsSpikedLoading(true);
+      setSpikedConnectionStatus('connecting');
+      try {
+        const response = await fetch("/api/recall/bot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ meeting_url: recallMeetingUrl }),
+        });
+        const data = await response.json();
+        if (data.id) {
+          setRecallBotId(data.id);
+          setSpikedConnectionStatus('connected');
+        } else {
+          setSpikedConnectionStatus('error');
+        }
+      } catch (error) {
+        console.error("Recall Bot Error:", error);
+        setSpikedConnectionStatus('error');
+      } finally {
+        setIsSpikedLoading(false);
+      }
+      return;
+    }
+
+    // Fallback to local discovery logic if no URL provided
     setIsSpikedLoading(true);
     setSpikedConnectionStatus('connecting');
     try {
@@ -348,6 +377,33 @@ export default function App() {
       setIsSpikedLoading(false);
     }
   };
+
+  // Recall.ai Polling Logic
+  useEffect(() => {
+    if (!recallBotId || inputMode !== 'spiked') return;
+
+    const pollTranscript = async () => {
+      try {
+        const response = await fetch(`/api/recall/bot/${recallBotId}/transcript`);
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          const segments: TranscriptSegment[] = data.map((item: any, i: number) => ({
+            id: i,
+            start: item.start_time,
+            end: item.end_time,
+            speaker: item.speaker || 'Unknown',
+            text: item.text
+          }));
+          setSpikedTranscript(segments);
+        }
+      } catch (error) {
+        console.error("Polling Error:", error);
+      }
+    };
+
+    const interval = setInterval(pollTranscript, 5000);
+    return () => clearInterval(interval);
+  }, [recallBotId, inputMode]);
 
   const groupTranscriptBySpeaker = (segments: TranscriptSegment[]) => {
     if (!segments || segments.length === 0) return [];
@@ -1050,7 +1106,11 @@ export default function App() {
                             <p className="text-[9px] text-emerald-600/60 font-bold uppercase tracking-widest">{spikedTranscript.length} Segments Synchronized</p>
                           </div>
                           <button 
-                            onClick={() => setSpikedTranscript([])}
+                            onClick={() => {
+                              setSpikedTranscript([]);
+                              setRecallBotId(null);
+                              setSpikedConnectionStatus('idle');
+                            }}
                             className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-8"
                           >
                             Disconnect and Clear
@@ -1067,33 +1127,46 @@ export default function App() {
                               Securely bridge your meeting intelligence and transfer transcripts for cognitive analysis.
                             </p>
                           </div>
-                          <div className="flex flex-col items-center gap-4">
-                            <button 
-                              onClick={loadSpikedTranscript}
-                              className="bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95"
-                            >
-                              Connect & Transfer
-                            </button>
-                            {spikedConnectionStatus !== 'idle' && (
-                              <div className="flex items-center gap-2">
-                                <div className={cn(
-                                  "w-1.5 h-1.5 rounded-full",
-                                  spikedConnectionStatus === 'connecting' && "bg-amber-400 animate-pulse",
-                                  spikedConnectionStatus === 'connected' && "bg-emerald-500",
-                                  spikedConnectionStatus === 'error' && "bg-red-500"
-                                )} />
-                                <span className={cn(
-                                  "text-[9px] font-bold uppercase tracking-widest",
-                                  spikedConnectionStatus === 'connecting' && "text-amber-600",
-                                  spikedConnectionStatus === 'connected' && "text-emerald-600",
-                                  spikedConnectionStatus === 'error' && "text-red-600"
-                                )}>
-                                  {spikedConnectionStatus === 'connecting' && "Connecting..."}
-                                  {spikedConnectionStatus === 'connected' && "Connected"}
-                                  {spikedConnectionStatus === 'error' && "Error: No Live Data Found"}
-                                </span>
-                              </div>
-                            )}
+                          <div className="space-y-4 w-full max-w-sm mx-auto">
+                            <div className="space-y-2">
+                              <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 block text-left ml-1">Meeting URL (Google Meet, Zoom, Teams)</label>
+                              <input 
+                                type="text"
+                                value={recallMeetingUrl}
+                                onChange={(e) => setRecallMeetingUrl(e.target.value)}
+                                placeholder="https://meet.google.com/abc-defg-hij"
+                                className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-black/5 transition-all shadow-sm"
+                              />
+                            </div>
+                            <div className="flex flex-col items-center gap-4">
+                              <button 
+                                onClick={loadSpikedTranscript}
+                                disabled={!recallMeetingUrl && spikedConnectionStatus === 'idle'}
+                                className="w-full bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {recallMeetingUrl ? "Join & Sync Meeting" : "Connect & Transfer"}
+                              </button>
+                              {spikedConnectionStatus !== 'idle' && (
+                                <div className="flex items-center gap-2">
+                                  <div className={cn(
+                                    "w-1.5 h-1.5 rounded-full",
+                                    spikedConnectionStatus === 'connecting' && "bg-amber-400 animate-pulse",
+                                    spikedConnectionStatus === 'connected' && "bg-emerald-500",
+                                    spikedConnectionStatus === 'error' && "bg-red-500"
+                                  )} />
+                                  <span className={cn(
+                                    "text-[9px] font-bold uppercase tracking-widest",
+                                    spikedConnectionStatus === 'connecting' && "text-amber-600",
+                                    spikedConnectionStatus === 'connected' && "text-emerald-600",
+                                    spikedConnectionStatus === 'error' && "text-red-600"
+                                  )}>
+                                    {spikedConnectionStatus === 'connecting' && "Connecting..."}
+                                    {spikedConnectionStatus === 'connected' && (recallBotId ? "Bot Joined Meeting" : "Connected")}
+                                    {spikedConnectionStatus === 'error' && "Error: Connection Failed"}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </>
                       )}
