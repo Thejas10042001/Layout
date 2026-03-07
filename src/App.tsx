@@ -257,7 +257,7 @@ export default function App() {
   const [transcript, setTranscript] = useState('');
   const [documentText, setDocumentText] = useState('');
   const [documentName, setDocumentName] = useState('');
-  const [inputMode, setInputMode] = useState<'paste' | 'live' | 'upload' | 'spiked'>('paste');
+  const [inputMode, setInputMode] = useState<'paste' | 'live' | 'upload' | 'spiked' | 'bot'>('paste');
   const [isSpikedLoading, setIsSpikedLoading] = useState(false);
   const [spikedConnectionStatus, setSpikedConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [spikedTranscript, setSpikedTranscript] = useState<TranscriptSegment[]>([]);
@@ -941,6 +941,12 @@ export default function App() {
                       Live
                     </button>
                     <button 
+                      onClick={() => setInputMode('bot')}
+                      className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'bot' ? "bg-white shadow-sm text-black" : "text-black/40")}
+                    >
+                      Join Bot
+                    </button>
+                    <button 
                       onClick={() => setInputMode('spiked')}
                       className={cn("px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all", inputMode === 'spiked' ? "bg-white shadow-sm text-black" : "text-black/40")}
                     >
@@ -1151,6 +1157,135 @@ export default function App() {
                       {isRecording ? "Stop Listening" : "Start Real-time Transcription"}
                     </button>
                   </div>
+                ) : inputMode === 'bot' ? (
+                  <div className="space-y-4">
+                    <div className={cn(
+                      "relative border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center text-center gap-6",
+                      recallBotId ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
+                    )}>
+                      {isSpikedLoading ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <Loader2 className="w-10 h-10 animate-spin text-red-600" />
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 animate-pulse">Bot is Joining Meeting...</p>
+                        </div>
+                      ) : recallBotId ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+                            <Activity className="w-8 h-8 text-emerald-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">Bot Active in Meeting</p>
+                            <p className="text-[9px] text-emerald-600/60 font-bold uppercase tracking-widest">Capturing Live Intelligence</p>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setRecallBotId(null);
+                              setSpikedConnectionStatus('idle');
+                              setSpikedTranscript([]);
+                            }}
+                            className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-8"
+                          >
+                            Stop Bot and Clear
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center shadow-xl shadow-black/10 rotate-3">
+                            <Target className="w-8 h-8 text-white" />
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className="text-[12px] font-black uppercase tracking-[0.1em]">Join Bot to Meeting</h3>
+                            <p className="text-[10px] text-black/40 font-medium max-w-[200px] mx-auto leading-relaxed">
+                              Deploy Spiked AI Cloud to your meeting for real-time transcription and analysis.
+                            </p>
+                          </div>
+                          <div className="space-y-4 w-full max-w-sm mx-auto">
+                            <div className="space-y-2">
+                              <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 block text-left ml-1">Meeting URL (Google Meet, Zoom, Teams)</label>
+                              <input 
+                                type="text"
+                                value={recallMeetingUrl}
+                                onChange={(e) => setRecallMeetingUrl(e.target.value)}
+                                placeholder="https://meet.google.com/abc-defg-hij"
+                                className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-black/5 transition-all shadow-sm"
+                              />
+                            </div>
+                            
+                            <div className="flex flex-col items-center gap-4">
+                              <button 
+                                onClick={loadSpikedTranscript}
+                                disabled={!recallMeetingUrl || spikedConnectionStatus === 'connecting'}
+                                className="w-full bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                Join Bot to Meeting
+                              </button>
+                              {spikedConnectionStatus !== 'idle' && (
+                                <div className="flex items-center gap-2">
+                                  <div className={cn(
+                                    "w-1.5 h-1.5 rounded-full",
+                                    spikedConnectionStatus === 'connecting' && "bg-amber-400 animate-pulse",
+                                    spikedConnectionStatus === 'connected' && "bg-emerald-500",
+                                    spikedConnectionStatus === 'error' && "bg-red-500"
+                                  )} />
+                                  <span className={cn(
+                                    "text-[9px] font-bold uppercase tracking-widest",
+                                    spikedConnectionStatus === 'connecting' && "text-amber-600",
+                                    spikedConnectionStatus === 'connected' && "text-emerald-600",
+                                    spikedConnectionStatus === 'error' && "text-red-600"
+                                  )}>
+                                    {spikedConnectionStatus === 'connecting' && "Connecting..."}
+                                    {spikedConnectionStatus === 'connected' && "Bot has joined the meeting."}
+                                    {spikedConnectionStatus === 'error' && "Bot failed to join the meeting."}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {spikedTranscript.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between px-1">
+                          <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Synchronized Transcript</label>
+                          <span className="text-[8px] font-bold uppercase tracking-widest text-emerald-500 flex items-center gap-1">
+                            <Activity className="w-2 h-2" /> Live Link Active
+                          </span>
+                        </div>
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                          {groupTranscriptBySpeaker(spikedTranscript).map((group) => (
+                            <div key={group.id} className="flex items-start gap-3 p-4 bg-white border border-black/5 rounded-2xl shadow-sm group relative">
+                              <div className="flex items-center gap-3 shrink-0">
+                                <input 
+                                  type="checkbox"
+                                  checked={group.selected}
+                                  onChange={() => toggleSegmentSelection(group.segmentIds)}
+                                  className="w-3.5 h-3.5 rounded border-black/10 text-red-600 focus:ring-red-500/20 transition-all cursor-pointer"
+                                />
+                                <div className="w-8 h-8 bg-black/5 rounded-full flex items-center justify-center">
+                                  <span className="text-[10px] font-black">{group.speaker?.charAt(0) || '?'}</span>
+                                </div>
+                              </div>
+                              <div className="space-y-1 flex-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-[10px] font-black uppercase tracking-tight text-black/40">{group.speaker || 'Unknown'}</p>
+                                  <select 
+                                    value={group.role}
+                                    onChange={(e) => updateSpeakerRole(group.speaker || 'Unknown', e.target.value as 'User' | 'Client')}
+                                    className="text-[8px] font-bold uppercase tracking-widest bg-black/5 border-none rounded-md px-2 py-1 focus:ring-0 cursor-pointer hover:bg-black/10 transition-all"
+                                  >
+                                    <option value="User">User</option>
+                                    <option value="Client">Client</option>
+                                  </select>
+                                </div>
+                                <p className="text-[11px] text-black/70 leading-relaxed">{group.text}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     <div className={cn(
@@ -1194,52 +1329,24 @@ export default function App() {
                             </p>
                           </div>
                           <div className="space-y-4 w-full max-w-sm mx-auto">
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 block text-left ml-1">Meeting URL (Google Meet, Zoom, Teams)</label>
-                                <input 
-                                  type="text"
-                                  value={recallMeetingUrl}
-                                  onChange={(e) => {
-                                    setRecallMeetingUrl(e.target.value);
-                                    if (e.target.value) setRecallBotIdInput('');
-                                  }}
-                                  placeholder="https://meet.google.com/abc-defg-hij"
-                                  className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-black/5 transition-all shadow-sm"
-                                />
-                              </div>
-                              
-                              <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                  <div className="w-full border-t border-black/5"></div>
-                                </div>
-                                <div className="relative flex justify-center text-[8px] uppercase font-bold tracking-widest">
-                                  <span className="bg-[#fdfdfd] px-2 text-black/20">OR</span>
-                                </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 block text-left ml-1">Bot ID (Recall.ai)</label>
-                                <input 
-                                  type="text"
-                                  value={recallBotIdInput}
-                                  onChange={(e) => {
-                                    setRecallBotIdInput(e.target.value);
-                                    if (e.target.value) setRecallMeetingUrl('');
-                                  }}
-                                  placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000"
-                                  className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-black/5 transition-all shadow-sm"
-                                />
-                              </div>
+                            <div className="space-y-2">
+                              <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 block text-left ml-1">Bot ID (Recall.ai)</label>
+                              <input 
+                                type="text"
+                                value={recallBotIdInput}
+                                onChange={(e) => setRecallBotIdInput(e.target.value)}
+                                placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000"
+                                className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-black/5 transition-all shadow-sm"
+                              />
                             </div>
                             
                             <div className="flex flex-col items-center gap-4">
                               <button 
                                 onClick={loadSpikedTranscript}
-                                disabled={!recallMeetingUrl && !recallBotIdInput && spikedConnectionStatus === 'idle'}
+                                disabled={!recallBotIdInput && spikedConnectionStatus === 'idle'}
                                 className="w-full bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                {recallBotIdInput ? "Fetch by Bot ID" : recallMeetingUrl ? "Join Bot to Meeting" : "Connect & Transfer"}
+                                Connect & Transfer
                               </button>
                               {spikedConnectionStatus !== 'idle' && (
                                 <div className="flex items-center gap-2">
@@ -1256,8 +1363,8 @@ export default function App() {
                                     spikedConnectionStatus === 'error' && "text-red-600"
                                   )}>
                                     {spikedConnectionStatus === 'connecting' && "Connecting..."}
-                                    {spikedConnectionStatus === 'connected' && (recallBotId ? "Bot has joined the meeting." : "Connected")}
-                                    {spikedConnectionStatus === 'error' && "Bot failed to join the meeting."}
+                                    {spikedConnectionStatus === 'connected' && "Connected"}
+                                    {spikedConnectionStatus === 'error' && "Error: Connection Failed"}
                                   </span>
                                 </div>
                               )}
