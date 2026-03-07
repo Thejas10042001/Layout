@@ -61,6 +61,17 @@ interface TranscriptSegment {
   end: number;
   text: string;
   speaker: string | null;
+  role?: 'User' | 'Client';
+  selected?: boolean;
+}
+
+interface TranscriptGroup {
+  id: number;
+  speaker: string | null;
+  text: string;
+  role?: 'User' | 'Client';
+  selected?: boolean;
+  segmentIds: number[];
 }
 
 interface AnalysisResult {
@@ -253,9 +264,8 @@ export default function App() {
   const [recallBotId, setRecallBotId] = useState<string | null>(null);
   const [recallBotIdInput, setRecallBotIdInput] = useState('');
   const [recallMeetingUrl, setRecallMeetingUrl] = useState('');
-  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
-  const [selectedSegments, setSelectedSegments] = useState<Set<number>>(new Set());
   const [speakerRoles, setSpeakerRoles] = useState<Record<string, 'User' | 'Client'>>({});
+  const [selectedSegments, setSelectedSegments] = useState<Set<number>>(new Set());
   const [livePerson1, setLivePerson1] = useState('');
   const [livePerson2, setLivePerson2] = useState('');
   const [person1VoiceSample, setPerson1VoiceSample] = useState<string | null>(null);
@@ -322,10 +332,8 @@ export default function App() {
       if (success) {
         setRecallBotId(recallBotIdInput);
         setSpikedConnectionStatus('connected');
-        setNotification({ message: "Bot successfully joined the meeting intelligence bridge.", type: 'success' });
       } else {
         setSpikedConnectionStatus('error');
-        setNotification({ message: "Failed to connect to the specified Bot ID.", type: 'error' });
       }
       setIsSpikedLoading(false);
       return;
@@ -338,23 +346,24 @@ export default function App() {
         const response = await fetch("/api/recall/bot", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ meeting_url: recallMeetingUrl }),
+          body: JSON.stringify({ 
+            meeting_url: recallMeetingUrl,
+            bot_name: "Spiked AI Cloud",
+            bot_logo_url: "https://picsum.photos/seed/spiked/200/200" // Placeholder for Spiked AI logo
+          }),
         });
         const data = await response.json();
         if (data.id) {
           setRecallBotId(data.id);
           setSpikedConnectionStatus('connected');
-          setNotification({ message: "Spiked AI Cloud Recommendation bot has joined the meeting.", type: 'success' });
           // Initial fetch
           await fetchRecallTranscript(data.id);
         } else {
           setSpikedConnectionStatus('error');
-          setNotification({ message: "Failed to dispatch bot to the meeting.", type: 'error' });
         }
       } catch (error) {
         console.error("Recall Bot Error:", error);
         setSpikedConnectionStatus('error');
-        setNotification({ message: "A network error occurred while connecting to Spiked Intelligence.", type: 'error' });
       } finally {
         setIsSpikedLoading(false);
       }
@@ -434,28 +443,49 @@ export default function App() {
     return () => clearInterval(interval);
   }, [recallBotId, inputMode]);
 
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => setNotification(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
   const groupTranscriptBySpeaker = (segments: TranscriptSegment[]) => {
     if (!segments || segments.length === 0) return [];
-    const groups: { speaker: string | null, text: string, id: number }[] = [];
-    let currentGroup: { speaker: string | null, text: string, id: number } | null = null;
+    const groups: TranscriptGroup[] = [];
+    let currentGroup: TranscriptGroup | null = null;
     
     segments.forEach((segment, index) => {
+      const speaker = segment.speaker || 'Unknown';
+      const role = speakerRoles[speaker] || 'User';
+      const selected = selectedSegments.has(segment.id);
+
       if (currentGroup && currentGroup.speaker === segment.speaker) {
         currentGroup.text += ' ' + segment.text;
+        currentGroup.segmentIds.push(segment.id);
       } else {
         if (currentGroup) groups.push(currentGroup);
-        currentGroup = { speaker: segment.speaker, text: segment.text, id: segment.id || index };
+        currentGroup = { 
+          speaker: segment.speaker, 
+          text: segment.text, 
+          id: segment.id || index,
+          role,
+          selected,
+          segmentIds: [segment.id]
+        };
       }
     });
     if (currentGroup) groups.push(currentGroup);
     return groups;
+  };
+
+  const toggleSegmentSelection = (segmentIds: number[]) => {
+    const newSelected = new Set(selectedSegments);
+    const allSelected = segmentIds.every(id => newSelected.has(id));
+    
+    segmentIds.forEach(id => {
+      if (allSelected) newSelected.delete(id);
+      else newSelected.add(id);
+    });
+    
+    setSelectedSegments(newSelected);
+  };
+
+  const updateSpeakerRole = (speaker: string, role: 'User' | 'Client') => {
+    setSpeakerRoles(prev => ({ ...prev, [speaker]: role }));
   };
 
   // Spiked Sync Logic
@@ -710,11 +740,7 @@ export default function App() {
     } else if (inputMode === 'live') {
       finalTranscript = `Customer: ${livePerson1}\nArchitect: ${livePerson2}`;
     } else if (inputMode === 'spiked') {
-      const filtered = spikedTranscript.filter(s => selectedSegments.size === 0 || selectedSegments.has(s.id));
-      finalTranscript = filtered.map(s => {
-        const role = speakerRoles[s.speaker || 'Unknown'] || 'Client';
-        return `[${role}] ${s.speaker || 'Unknown'}: ${s.text}`;
-      }).join('\n');
+      finalTranscript = spikedTranscript.map(s => `${s.speaker || 'Unknown'}: ${s.text}`).join('\n');
     }
 
     if (!finalTranscript.trim()) return;
@@ -787,27 +813,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F4] text-[#1A1A1A] font-sans selection:bg-black selection:text-white">
-      {/* Notification Toast */}
-      <AnimatePresence>
-        {notification && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, x: '-50%' }}
-            animate={{ opacity: 1, y: 20, x: '-50%' }}
-            exit={{ opacity: 0, y: -20, x: '-50%' }}
-            className={cn(
-              "fixed top-0 left-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border min-w-[320px]",
-              notification.type === 'success' ? "bg-emerald-50 border-emerald-100 text-emerald-800" : "bg-red-50 border-red-100 text-red-800"
-            )}
-          >
-            {notification.type === 'success' ? <FileCheck className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
-            <span className="text-[10px] font-black uppercase tracking-widest">{notification.message}</span>
-            <button onClick={() => setNotification(null)} className="ml-auto">
-              <X className="w-4 h-4 opacity-40 hover:opacity-100" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Header */}
       <header className="border-b border-black/5 bg-white sticky top-0 z-50 py-4">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
@@ -1234,7 +1239,7 @@ export default function App() {
                                 disabled={!recallMeetingUrl && !recallBotIdInput && spikedConnectionStatus === 'idle'}
                                 className="w-full bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                {recallBotIdInput ? "Fetch by Bot ID" : recallMeetingUrl ? "Join & Sync Meeting" : "Connect & Transfer"}
+                                {recallBotIdInput ? "Fetch by Bot ID" : recallMeetingUrl ? "Join Bot to Meeting" : "Connect & Transfer"}
                               </button>
                               {spikedConnectionStatus !== 'idle' && (
                                 <div className="flex items-center gap-2">
@@ -1251,8 +1256,8 @@ export default function App() {
                                     spikedConnectionStatus === 'error' && "text-red-600"
                                   )}>
                                     {spikedConnectionStatus === 'connecting' && "Connecting..."}
-                                    {spikedConnectionStatus === 'connected' && (recallBotId ? "Bot Joined Meeting" : "Connected")}
-                                    {spikedConnectionStatus === 'error' && "Error: Connection Failed"}
+                                    {spikedConnectionStatus === 'connected' && (recallBotId ? "Bot has joined the meeting." : "Connected")}
+                                    {spikedConnectionStatus === 'error' && "Bot failed to join the meeting."}
                                   </span>
                                 </div>
                               )}
@@ -1264,63 +1269,35 @@ export default function App() {
                     {spikedTranscript.length > 0 && (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between px-1">
-                          <div className="flex items-center gap-3">
-                            <input 
-                              type="checkbox"
-                              checked={spikedTranscript.length > 0 && selectedSegments.size === groupTranscriptBySpeaker(spikedTranscript).length}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedSegments(new Set(groupTranscriptBySpeaker(spikedTranscript).map(g => g.id)));
-                                } else {
-                                  setSelectedSegments(new Set());
-                                }
-                              }}
-                              className="w-4 h-4 rounded border-black/20 text-black focus:ring-black cursor-pointer"
-                            />
-                            <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Select All Segments</label>
-                          </div>
-                          <p className="text-[8px] font-bold text-black/30 uppercase tracking-widest">Assign roles & select segments for analysis</p>
+                          <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Synchronized Transcript</label>
                           <span className="text-[8px] font-bold uppercase tracking-widest text-emerald-500 flex items-center gap-1">
                             <Activity className="w-2 h-2" /> Live Link Active
                           </span>
                         </div>
                         <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                           {groupTranscriptBySpeaker(spikedTranscript).map((group) => (
-                            <div key={group.id} className={cn(
-                              "flex items-start gap-3 p-4 bg-white border rounded-2xl shadow-sm transition-all",
-                              selectedSegments.has(group.id) ? "border-black ring-1 ring-black" : "border-black/5"
-                            )}>
-                              <div className="flex flex-col items-center gap-3 shrink-0">
+                            <div key={group.id} className="flex items-start gap-3 p-4 bg-white border border-black/5 rounded-2xl shadow-sm group relative">
+                              <div className="flex items-center gap-3 shrink-0">
                                 <input 
                                   type="checkbox"
-                                  checked={selectedSegments.has(group.id)}
-                                  onChange={(e) => {
-                                    const next = new Set(selectedSegments);
-                                    if (e.target.checked) next.add(group.id);
-                                    else next.delete(group.id);
-                                    setSelectedSegments(next);
-                                  }}
-                                  className="w-4 h-4 rounded border-black/20 text-black focus:ring-black cursor-pointer"
+                                  checked={group.selected}
+                                  onChange={() => toggleSegmentSelection(group.segmentIds)}
+                                  className="w-3.5 h-3.5 rounded border-black/10 text-red-600 focus:ring-red-500/20 transition-all cursor-pointer"
                                 />
                                 <div className="w-8 h-8 bg-black/5 rounded-full flex items-center justify-center">
                                   <span className="text-[10px] font-black">{group.speaker?.charAt(0) || '?'}</span>
                                 </div>
                               </div>
-                              <div className="space-y-2 flex-1">
+                              <div className="space-y-1 flex-1">
                                 <div className="flex items-center justify-between">
                                   <p className="text-[10px] font-black uppercase tracking-tight text-black/40">{group.speaker || 'Unknown'}</p>
                                   <select 
-                                    value={speakerRoles[group.speaker || 'Unknown'] || 'Client'}
-                                    onChange={(e) => {
-                                      setSpeakerRoles(prev => ({
-                                        ...prev,
-                                        [group.speaker || 'Unknown']: e.target.value as 'User' | 'Client'
-                                      }));
-                                    }}
-                                    className="text-[8px] font-bold uppercase tracking-widest bg-black/5 border-none rounded-lg px-2 py-1 focus:ring-0 cursor-pointer"
+                                    value={group.role}
+                                    onChange={(e) => updateSpeakerRole(group.speaker || 'Unknown', e.target.value as 'User' | 'Client')}
+                                    className="text-[8px] font-bold uppercase tracking-widest bg-black/5 border-none rounded-md px-2 py-1 focus:ring-0 cursor-pointer hover:bg-black/10 transition-all"
                                   >
+                                    <option value="User">User</option>
                                     <option value="Client">Client</option>
-                                    <option value="User">User (Architect)</option>
                                   </select>
                                 </div>
                                 <p className="text-[11px] text-black/70 leading-relaxed">{group.text}</p>
@@ -1328,14 +1305,6 @@ export default function App() {
                             </div>
                           ))}
                         </div>
-                        {selectedSegments.size > 0 && (
-                          <button 
-                            onClick={handleAnalyze}
-                            className="w-full bg-red-600 text-white py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-red-700 transition-all shadow-xl shadow-red-500/20 active:scale-95 mt-4"
-                          >
-                            Analyze {selectedSegments.size} Selected Segments
-                          </button>
-                        )}
                       </div>
                     )}
                   </div>
