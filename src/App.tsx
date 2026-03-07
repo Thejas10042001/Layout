@@ -39,7 +39,7 @@ import {
   DollarSign,
   Activity
 } from 'lucide-react';
-import { analyzeTranscript, performOCR, validateDocumentMatch, diarizeSpeaker } from './services/geminiService';
+import { analyzeTranscript, performOCR, validateDocumentMatch, diarizeSpeaker, processTranscript } from './services/geminiService';
 import { cn } from './lib/utils';
 import mammoth from 'mammoth';
 import { 
@@ -63,6 +63,7 @@ interface TranscriptSegment {
   speaker: string | null;
   role?: 'User' | 'Client';
   selected?: boolean;
+  sentiment?: string;
 }
 
 interface TranscriptGroup {
@@ -72,6 +73,7 @@ interface TranscriptGroup {
   role?: 'User' | 'Client';
   selected?: boolean;
   segmentIds: number[];
+  sentiment?: string;
 }
 
 interface AnalysisResult {
@@ -261,6 +263,7 @@ export default function App() {
   const [isSpikedLoading, setIsSpikedLoading] = useState(false);
   const [spikedConnectionStatus, setSpikedConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [spikedTranscript, setSpikedTranscript] = useState<TranscriptSegment[]>([]);
+  const [detectedQuestions, setDetectedQuestions] = useState<string[]>([]);
   const [recallBotId, setRecallBotId] = useState<string | null>(null);
   const [recallBotIdInput, setRecallBotIdInput] = useState('');
   const [recallMeetingUrl, setRecallMeetingUrl] = useState('');
@@ -308,14 +311,23 @@ export default function App() {
       const response = await fetch(`/api/recall/bot/${botId}/transcript`);
       const data = await response.json();
       if (Array.isArray(data)) {
-        const segments: TranscriptSegment[] = data.map((item: any, i: number) => ({
+        const rawSegments = data.map((item: any, i: number) => ({
           id: i,
           start: item.start_time,
           end: item.end_time,
           speaker: item.speaker || 'Unknown',
           text: item.text
         }));
-        setSpikedTranscript(segments);
+
+        // Enrich with sentiment and questions if there are new segments
+        if (rawSegments.length > spikedTranscript.length) {
+          const { enrichedSegments, questions } = await processTranscript(rawSegments);
+          setSpikedTranscript(enrichedSegments);
+          setDetectedQuestions(questions);
+        } else {
+          setSpikedTranscript(rawSegments);
+        }
+        
         return true;
       }
       return false;
@@ -480,6 +492,8 @@ export default function App() {
       if (currentGroup && currentGroup.speaker === segment.speaker) {
         currentGroup.text += ' ' + segment.text;
         currentGroup.segmentIds.push(segment.id);
+        // Keep the most recent sentiment or combine? Let's just keep the latest for the group
+        if (segment.sentiment) currentGroup.sentiment = segment.sentiment;
       } else {
         if (currentGroup) groups.push(currentGroup);
         currentGroup = { 
@@ -488,7 +502,8 @@ export default function App() {
           id: segment.id || index,
           role,
           selected,
-          segmentIds: [segment.id]
+          segmentIds: [segment.id],
+          sentiment: segment.sentiment
         };
       }
     });
@@ -1196,6 +1211,22 @@ export default function App() {
                   </div>
                 ) : inputMode === 'bot' ? (
                   <div className="space-y-4">
+                    {detectedQuestions.length > 0 && (
+                      <div className="bg-red-50/30 border border-red-100 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-red-600">
+                          <Target className="w-3 h-3" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">Key Questions Detected</span>
+                        </div>
+                        <div className="space-y-2">
+                          {detectedQuestions.map((q, i) => (
+                            <div key={i} className="flex items-start gap-2">
+                              <div className="w-1 h-1 bg-red-400 rounded-full mt-1.5 shrink-0" />
+                              <p className="text-[10px] text-red-900/70 font-medium leading-relaxed">{q}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className={cn(
                       "relative border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center text-center gap-6",
                       recallBotId ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
@@ -1299,8 +1330,20 @@ export default function App() {
                                   onChange={() => toggleSegmentSelection(group.segmentIds)}
                                   className="w-3.5 h-3.5 rounded border-black/10 text-red-600 focus:ring-red-500/20 transition-all cursor-pointer"
                                 />
-                                <div className="w-8 h-8 bg-black/5 rounded-full flex items-center justify-center">
-                                  <span className="text-[10px] font-black">{group.speaker?.charAt(0) || '?'}</span>
+                                <div className="flex flex-col items-center gap-2">
+                                  <div className="w-8 h-8 bg-black/5 rounded-full flex items-center justify-center">
+                                    <span className="text-[10px] font-black">{group.speaker?.charAt(0) || '?'}</span>
+                                  </div>
+                                  {group.sentiment && (
+                                    <span className={cn(
+                                      "text-[7px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-full",
+                                      group.sentiment === 'Positive' && "bg-emerald-100 text-emerald-700",
+                                      group.sentiment === 'Negative' && "bg-red-100 text-red-700",
+                                      group.sentiment === 'Neutral' && "bg-black/5 text-black/40"
+                                    )}>
+                                      {group.sentiment}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               <div className="space-y-1 flex-1">
@@ -1325,6 +1368,22 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {detectedQuestions.length > 0 && (
+                      <div className="bg-red-50/30 border border-red-100 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-red-600">
+                          <Target className="w-3 h-3" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">Key Questions Detected</span>
+                        </div>
+                        <div className="space-y-2">
+                          {detectedQuestions.map((q, i) => (
+                            <div key={i} className="flex items-start gap-2">
+                              <div className="w-1 h-1 bg-red-400 rounded-full mt-1.5 shrink-0" />
+                              <p className="text-[10px] text-red-900/70 font-medium leading-relaxed">{q}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className={cn(
                       "relative border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center text-center gap-6",
                       spikedTranscript.length > 0 ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
@@ -1428,8 +1487,20 @@ export default function App() {
                                   onChange={() => toggleSegmentSelection(group.segmentIds)}
                                   className="w-3.5 h-3.5 rounded border-black/10 text-red-600 focus:ring-red-500/20 transition-all cursor-pointer"
                                 />
-                                <div className="w-8 h-8 bg-black/5 rounded-full flex items-center justify-center">
-                                  <span className="text-[10px] font-black">{group.speaker?.charAt(0) || '?'}</span>
+                                <div className="flex flex-col items-center gap-2">
+                                  <div className="w-8 h-8 bg-black/5 rounded-full flex items-center justify-center">
+                                    <span className="text-[10px] font-black">{group.speaker?.charAt(0) || '?'}</span>
+                                  </div>
+                                  {group.sentiment && (
+                                    <span className={cn(
+                                      "text-[7px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-full",
+                                      group.sentiment === 'Positive' && "bg-emerald-100 text-emerald-700",
+                                      group.sentiment === 'Negative' && "bg-red-100 text-red-700",
+                                      group.sentiment === 'Neutral' && "bg-black/5 text-black/40"
+                                    )}>
+                                      {group.sentiment}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               <div className="space-y-1 flex-1">

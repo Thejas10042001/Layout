@@ -292,6 +292,67 @@ Return a JSON object with "speaker": 1 or 2.`,
   }
 }
 
+export async function processTranscript(segments: { speaker: string; text: string }[]): Promise<{ enrichedSegments: any[]; questions: string[] }> {
+  const transcriptText = segments.map(s => `${s.speaker}: ${s.text}`).join('\n');
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: `Analyze the following meeting transcript. 
+1. For each segment, provide a sentiment (Positive, Neutral, Negative).
+2. Extract any important questions asked during the meeting.
+
+Transcript:
+${transcriptText}
+
+Return a JSON object with:
+- "enrichedSegments": array of objects with "sentiment" (string)
+- "questions": array of strings`,
+          },
+        ],
+      },
+    ],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          enrichedSegments: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                sentiment: { type: Type.STRING },
+              },
+              required: ["sentiment"],
+            },
+          },
+          questions: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+          },
+        },
+        required: ["enrichedSegments", "questions"],
+      },
+    },
+  });
+
+  try {
+    const result = JSON.parse(response.text || '{"enrichedSegments": [], "questions": []}');
+    const enriched = segments.map((s, i) => ({
+      ...s,
+      sentiment: result.enrichedSegments[i]?.sentiment || 'Neutral'
+    }));
+    return { enrichedSegments: enriched, questions: result.questions };
+  } catch (e) {
+    return { enrichedSegments: segments.map(s => ({ ...s, sentiment: 'Neutral' })), questions: [] };
+  }
+}
+
 export async function analyzeTranscript(transcript: string, documentContext?: string) {
   const contextPrompt = documentContext 
     ? `Additional Document Context:
