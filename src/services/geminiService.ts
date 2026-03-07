@@ -147,8 +147,41 @@ export const ARCHITECT_SCHEMA = {
     },
     executive_summary: { type: Type.STRING },
     technical_architecture_diagram: { type: Type.STRING, description: "Highly detailed ASCII boxed reference architecture diagram with inline explanations and service-level granularity." },
+    sales_intelligence: {
+      type: Type.OBJECT,
+      properties: {
+        sentiment_score: { type: Type.STRING, description: "Overall sentiment (0-100)" },
+        sentiment_summary: { type: Type.STRING },
+        buying_signals: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              signal: { type: Type.STRING },
+              confidence: { type: Type.STRING },
+              evidence: { type: Type.STRING }
+            },
+            required: ["signal", "confidence", "evidence"]
+          }
+        },
+        medpicc: {
+          type: Type.OBJECT,
+          properties: {
+            metrics: { type: Type.STRING },
+            economic_buyer: { type: Type.STRING },
+            decision_criteria: { type: Type.STRING },
+            decision_process: { type: Type.STRING },
+            identify_pain: { type: Type.STRING },
+            champion: { type: Type.STRING },
+            competition: { type: Type.STRING }
+          },
+          required: ["metrics", "economic_buyer", "decision_criteria", "decision_process", "identify_pain", "champion", "competition"]
+        }
+      },
+      required: ["sentiment_score", "sentiment_summary", "buying_signals", "medpicc"]
+    }
   },
-  required: ["client_snapshot", "recommendation", "total_cost_of_ownership", "solution_set", "client_references", "matched_use_cases", "executive_summary", "technical_architecture_diagram"],
+  required: ["client_snapshot", "recommendation", "total_cost_of_ownership", "solution_set", "client_references", "matched_use_cases", "executive_summary", "technical_architecture_diagram", "sales_intelligence"],
 };
 
 export async function performOCR(base64Data: string, mimeType: string): Promise<string> {
@@ -305,8 +338,13 @@ Strategic Requirements:
    - Cost Breakdown: A granular list of line items, each with its own cost (rounded) and specific reasoning.
    - Detailed Explanation: In-depth description of how the solution works and its benefits.
 
-4. Client References: Provide industry-specific success stories.
-5. Total Cost of Ownership (TCO): Provide:
+4. Sales Intelligence (Spiked AI Engine):
+   - Sentiment Analysis: Overall sentiment score (0-100) and a qualitative summary.
+   - Buying Signals: Identify specific verbal cues that indicate intent to purchase or move forward.
+   - MEDPICC Analysis: Evaluate the deal based on Metrics, Economic Buyer, Decision Criteria, Decision Process, Identify Pain, Champion, and Competition.
+
+5. Client References: Provide industry-specific success stories.
+6. Total Cost of Ownership (TCO): Provide:
    - Monthly Estimate: Total monthly cost (rounded) with detailed math and reasoning, plus a granular breakdown of categories.
    - Yearly Estimate: Total yearly cost (rounded).
    - Setup Cost: One-time costs (rounded) with detailed math and reasoning, plus a granular breakdown of items.
@@ -314,7 +352,7 @@ Strategic Requirements:
    - Optimization Strategy: How to reduce costs over time.
    - Optimization Judgment: Expert judgment on the feasibility and impact of the strategy.
 
-6. Recommendation: A single, central strategic recommendation.
+7. Recommendation: A single, central strategic recommendation.
 
 Output must be concise and executive-ready.`,
           },

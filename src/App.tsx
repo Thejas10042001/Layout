@@ -55,6 +55,14 @@ import {
 } from 'recharts';
 
 
+interface TranscriptSegment {
+  id: number;
+  start: number;
+  end: number;
+  text: string;
+  speaker: string | null;
+}
+
 interface AnalysisResult {
   client_snapshot: {
     organization_type: string;
@@ -123,6 +131,24 @@ interface AnalysisResult {
   }[];
   executive_summary: string;
   technical_architecture_diagram: string;
+  sales_intelligence: {
+    sentiment_score: string;
+    sentiment_summary: string;
+    buying_signals: {
+      signal: string;
+      confidence: string;
+      evidence: string;
+    }[];
+    medpicc: {
+      metrics: string;
+      economic_buyer: string;
+      decision_criteria: string;
+      decision_process: string;
+      identify_pain: string;
+      champion: string;
+      competition: string;
+    };
+  };
 }
 
 interface HistoryItem {
@@ -175,6 +201,7 @@ export default function App() {
   const [documentName, setDocumentName] = useState('');
   const [inputMode, setInputMode] = useState<'paste' | 'live' | 'upload' | 'spiked'>('paste');
   const [isSpikedLoading, setIsSpikedLoading] = useState(false);
+  const [spikedTranscript, setSpikedTranscript] = useState<TranscriptSegment[]>([]);
   const [livePerson1, setLivePerson1] = useState('');
   const [livePerson2, setLivePerson2] = useState('');
   const [person1VoiceSample, setPerson1VoiceSample] = useState<string | null>(null);
@@ -210,6 +237,66 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+
+  const groupTranscriptBySpeaker = (segments: TranscriptSegment[]) => {
+    if (!segments || segments.length === 0) return [];
+    const groups: { speaker: string | null, text: string, id: number }[] = [];
+    let currentGroup: { speaker: string | null, text: string, id: number } | null = null;
+    
+    segments.forEach((segment, index) => {
+      if (currentGroup && currentGroup.speaker === segment.speaker) {
+        currentGroup.text += ' ' + segment.text;
+      } else {
+        if (currentGroup) groups.push(currentGroup);
+        currentGroup = { speaker: segment.speaker, text: segment.text, id: segment.id || index };
+      }
+    });
+    if (currentGroup) groups.push(currentGroup);
+    return groups;
+  };
+
+  // Spiked Sync Logic
+  useEffect(() => {
+    if (inputMode !== 'spiked') return;
+
+    const syncFromStorage = () => {
+      try {
+        const raw = window.sessionStorage.getItem('spikedai_current_transcript');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            setSpikedTranscript(parsed);
+          }
+        }
+      } catch (e) {
+        console.error("Sync error", e);
+      }
+    };
+
+    // Initial sync
+    syncFromStorage();
+
+    // Listen for storage changes (cross-tab)
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'spikedai_current_transcript') syncFromStorage();
+    });
+
+    // BroadcastChannel for instant sync if available
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('spikedai_transcript_updates');
+      bc.onmessage = (event) => {
+        if (event.data.type === 'new_segment' || event.data.type === 'full_sync') {
+          syncFromStorage();
+        }
+      };
+    } catch (e) {}
+
+    return () => {
+      window.removeEventListener('storage', syncFromStorage);
+      if (bc) bc.close();
+    };
+  }, [inputMode]);
 
   useEffect(() => {
     localStorage.setItem('architect_history', JSON.stringify(history));
@@ -413,9 +500,15 @@ export default function App() {
   };
 
   const handleAnalyze = async () => {
-    const finalTranscript = (inputMode === 'paste' || inputMode === 'upload')
-      ? transcript 
-      : `Customer: ${livePerson1}\nArchitect: ${livePerson2}`;
+    let finalTranscript = '';
+    
+    if (inputMode === 'paste' || inputMode === 'upload') {
+      finalTranscript = transcript;
+    } else if (inputMode === 'live') {
+      finalTranscript = `Customer: ${livePerson1}\nArchitect: ${livePerson2}`;
+    } else if (inputMode === 'spiked') {
+      finalTranscript = spikedTranscript.map(s => `${s.speaker || 'Unknown'}: ${s.text}`).join('\n');
+    }
 
     if (!finalTranscript.trim()) return;
     
@@ -829,24 +922,24 @@ export default function App() {
                   <div className="space-y-4">
                     <div className={cn(
                       "relative border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center text-center gap-6",
-                      transcript ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
+                      spikedTranscript.length > 0 ? "border-emerald-200 bg-emerald-50/30" : "border-black/5 bg-white hover:border-black/10"
                     )}>
                       {isSpikedLoading ? (
                         <div className="flex flex-col items-center gap-4">
                           <Loader2 className="w-10 h-10 animate-spin text-red-600" />
                           <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 animate-pulse">Establishing Secure Connection...</p>
                         </div>
-                      ) : transcript ? (
+                      ) : spikedTranscript.length > 0 ? (
                         <div className="flex flex-col items-center gap-4">
                           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
                             <FileCheck className="w-8 h-8 text-emerald-600" />
                           </div>
                           <div className="space-y-1">
                             <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">Spiked Intelligence Connected</p>
-                            <p className="text-[9px] text-emerald-600/60 font-bold uppercase tracking-widest">Transcript Synchronized</p>
+                            <p className="text-[9px] text-emerald-600/60 font-bold uppercase tracking-widest">{spikedTranscript.length} Segments Synchronized</p>
                           </div>
                           <button 
-                            onClick={() => setTranscript('')}
+                            onClick={() => setSpikedTranscript([])}
                             className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-8"
                           >
                             Disconnect and Clear
@@ -866,9 +959,13 @@ export default function App() {
                           <button 
                             onClick={async () => {
                               setIsSpikedLoading(true);
-                              // Simulate connection and transfer
+                              // Simulate connection and transfer of sample data
                               await new Promise(r => setTimeout(r, 2000));
-                              setTranscript(SAMPLE_TRANSCRIPT);
+                              const sampleSegments: TranscriptSegment[] = SAMPLE_TRANSCRIPT.split('\n').map((line, i) => {
+                                const [speaker, ...text] = line.split(': ');
+                                return { id: i, start: i * 10, end: (i + 1) * 10, speaker: speaker || 'Unknown', text: text.join(': ') || line };
+                              });
+                              setSpikedTranscript(sampleSegments);
                               setIsSpikedLoading(false);
                             }}
                             className="bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95"
@@ -878,19 +975,27 @@ export default function App() {
                         </>
                       )}
                     </div>
-                    {transcript && (
-                      <div className="space-y-2">
+                    {spikedTranscript.length > 0 && (
+                      <div className="space-y-4">
                         <div className="flex items-center justify-between px-1">
                           <label className="text-[9px] font-bold uppercase tracking-widest text-black/40">Synchronized Transcript</label>
                           <span className="text-[8px] font-bold uppercase tracking-widest text-emerald-500 flex items-center gap-1">
-                            <Activity className="w-2 h-2" /> Live Link
+                            <Activity className="w-2 h-2" /> Live Link Active
                           </span>
                         </div>
-                        <textarea
-                          value={transcript}
-                          onChange={(e) => setTranscript(e.target.value)}
-                          className="w-full h-[200px] bg-white border border-black/10 rounded-2xl p-4 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-black/5 transition-all resize-none shadow-sm"
-                        />
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                          {groupTranscriptBySpeaker(spikedTranscript).map((group) => (
+                            <div key={group.id} className="flex items-start gap-3 p-4 bg-white border border-black/5 rounded-2xl shadow-sm">
+                              <div className="w-8 h-8 bg-black/5 rounded-full flex items-center justify-center shrink-0">
+                                <span className="text-[10px] font-black">{group.speaker?.charAt(0) || '?'}</span>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-black uppercase tracking-tight text-black/40">{group.speaker || 'Unknown'}</p>
+                                <p className="text-[11px] text-black/70 leading-relaxed">{group.text}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -901,7 +1006,7 @@ export default function App() {
             <div className="max-w-xl mx-auto pt-8">
               <button
                 onClick={handleAnalyze}
-                disabled={isAnalyzing || isOcrLoading || (inputMode === 'paste' ? !transcript.trim() : (!livePerson1.trim() && !livePerson2.trim()))}
+                disabled={isAnalyzing || isOcrLoading || (inputMode === 'paste' ? !transcript.trim() : inputMode === 'spiked' ? spikedTranscript.length === 0 : (!livePerson1.trim() && !livePerson2.trim()))}
                 className={cn(
                   "w-full flex items-center justify-center gap-3 px-8 py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all shadow-2xl",
                   isAnalyzing ? "bg-black/10 text-black/40 cursor-not-allowed" : "bg-red-600 text-white hover:bg-red-700 active:scale-95 shadow-red-600/20"
@@ -1014,8 +1119,60 @@ export default function App() {
                   className="space-y-8"
                 >
                   <div className="grid grid-cols-12 gap-8">
-                    {/* Left Column: Use Case, Client References (col-span-5) */}
+                    {/* Left Column: Sales Intelligence, Use Case, Client References (col-span-5) */}
                     <div className="col-span-12 lg:col-span-5 space-y-8">
+                      {/* Sales Intelligence Section */}
+                      <section className="bg-black text-white rounded-3xl p-8 shadow-xl space-y-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-white/40">
+                            <BrainCircuit className="w-4 h-4" />
+                            <span className="text-[11px] font-bold uppercase tracking-widest">Sales Intelligence (Spiked Engine)</span>
+                          </div>
+                          <div className="flex items-center gap-2 px-3 py-1 bg-red-600 rounded-full">
+                            <span className="text-[10px] font-black uppercase tracking-widest">Sentiment: {result?.sales_intelligence.sentiment_score}%</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-2">Sentiment Summary</p>
+                            <p className="text-[11px] text-white/70 leading-relaxed italic">"{result?.sales_intelligence.sentiment_summary}"</p>
+                          </div>
+
+                          <div className="space-y-3">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Buying Signals Detected</p>
+                            <div className="space-y-2">
+                              {result?.sales_intelligence.buying_signals.map((signal, i) => (
+                                <div key={i} className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-1">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-bold text-red-400">{signal.signal}</span>
+                                    <span className="text-[9px] font-bold uppercase tracking-widest text-white/20">{signal.confidence} Confidence</span>
+                                  </div>
+                                  <p className="text-[10px] text-white/60 leading-relaxed">"{signal.evidence}"</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">MEDPICC Analysis</p>
+                            <div className="grid grid-cols-1 gap-2">
+                              {Object.entries(result?.sales_intelligence.medpicc || {}).map(([key, value]) => (
+                                <div key={key} className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
+                                  <div className="w-6 h-6 bg-red-600 rounded flex items-center justify-center shrink-0">
+                                    <span className="text-[10px] font-black uppercase">{key.charAt(0)}</span>
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">{key.replace('_', ' ')}</p>
+                                    <p className="text-[10px] text-white/80 leading-tight">{value}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
                       {/* Use Case Section */}
                       <section className="bg-white border border-black/5 rounded-3xl p-8 shadow-sm space-y-6">
                         <div className="flex items-center gap-2 text-black/40">
