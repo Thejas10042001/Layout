@@ -168,6 +168,53 @@ const LAYER_ICONS: Record<string, React.ReactNode> = {
   AI: <BrainCircuit className="w-5 h-5" />,
 };
 
+const DB_NAME = 'SpikedAI_Cache';
+const DB_VERSION = 3;
+const TRANSCRIPTS_STORE = 'transcripts';
+
+let dbPromise: Promise<IDBDatabase> | null = null;
+
+const initDB = (): Promise<IDBDatabase> => {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(TRANSCRIPTS_STORE)) {
+        db.createObjectStore(TRANSCRIPTS_STORE, { keyPath: 'meetingId' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  return dbPromise;
+};
+
+const loadFromIndexedDB = async (storeName: string, key?: string): Promise<any> => {
+  try {
+    const db = await initDB();
+    if (!db.objectStoreNames.contains(storeName)) return key ? null : [];
+    const transaction = db.transaction([storeName], 'readonly');
+    const store = transaction.objectStore(storeName);
+    if (key) {
+      const request = store.get(key);
+      return new Promise((resolve) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(null);
+      });
+    } else {
+      const request = store.getAll();
+      return new Promise((resolve) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve([]);
+      });
+    }
+  } catch (error) {
+    console.error('Error loading from IndexedDB:', error);
+    return key ? null : [];
+  }
+};
+
 const SAMPLE_TRANSCRIPT = `Architect: Thanks for joining today. I understand your team is looking to modernize the core claims processing system. Can you walk me through the current state?
 CTO: Right now, we're on-prem. It's a monolithic Java app running on aging hardware. We're seeing 15-minute downtime windows every Tuesday during deployments.
 Architect: That's significant. What's the business impact?
@@ -237,6 +284,64 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+
+  const loadSpikedTranscript = async () => {
+    setIsSpikedLoading(true);
+    try {
+      // Strategy 1: Check multiple session storage keys used by SpikedAI
+      const storageKeys = [
+        'spikedai_current_transcript',
+        'spikedai_main_transcript',
+        'spikedai_live_transcript',
+        'spikedai_transcript',
+        'spikedai_transcript_segments',
+        'current_meeting_transcript',
+        'transcript_data',
+        'meeting_segments'
+      ];
+
+      for (const key of storageKeys) {
+        const raw = window.sessionStorage.getItem(key);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setSpikedTranscript(parsed);
+              setIsSpikedLoading(false);
+              return;
+            }
+          } catch (e) {}
+        }
+      }
+
+      // Strategy 2: Check IndexedDB for any stored transcripts
+      const allEntries = await loadFromIndexedDB(TRANSCRIPTS_STORE);
+      if (allEntries && allEntries.length > 0) {
+        const validEntries = allEntries.filter((e: any) => e.data && Array.isArray(e.data) && e.data.length > 0);
+        if (validEntries.length > 0) {
+          // Use the entry with the most segments
+          const bestEntry = validEntries.reduce((prev: any, current: any) => 
+            (current.data.length > prev.data.length) ? current : prev
+          );
+          setSpikedTranscript(bestEntry.data);
+          setIsSpikedLoading(false);
+          return;
+        }
+      }
+
+      // Strategy 3: Fallback to sample only if absolutely nothing else is found
+      const sampleSegments: TranscriptSegment[] = SAMPLE_TRANSCRIPT.split('\n').map((line, i) => {
+        const [speaker, ...text] = line.split(': ');
+        return { id: i, start: i * 10, end: (i + 1) * 10, speaker: speaker || 'Unknown', text: text.join(': ') || line };
+      });
+      setSpikedTranscript(sampleSegments);
+      
+    } catch (e) {
+      console.error("Load error", e);
+    } finally {
+      setIsSpikedLoading(false);
+    }
+  };
 
   const groupTranscriptBySpeaker = (segments: TranscriptSegment[]) => {
     if (!segments || segments.length === 0) return [];
@@ -957,17 +1062,7 @@ export default function App() {
                             </p>
                           </div>
                           <button 
-                            onClick={async () => {
-                              setIsSpikedLoading(true);
-                              // Simulate connection and transfer of sample data
-                              await new Promise(r => setTimeout(r, 2000));
-                              const sampleSegments: TranscriptSegment[] = SAMPLE_TRANSCRIPT.split('\n').map((line, i) => {
-                                const [speaker, ...text] = line.split(': ');
-                                return { id: i, start: i * 10, end: (i + 1) * 10, speaker: speaker || 'Unknown', text: text.join(': ') || line };
-                              });
-                              setSpikedTranscript(sampleSegments);
-                              setIsSpikedLoading(false);
-                            }}
+                            onClick={loadSpikedTranscript}
                             className="bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95"
                           >
                             Connect & Transfer
