@@ -251,6 +251,7 @@ export default function App() {
   const [spikedConnectionStatus, setSpikedConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [spikedTranscript, setSpikedTranscript] = useState<TranscriptSegment[]>([]);
   const [recallBotId, setRecallBotId] = useState<string | null>(null);
+  const [recallBotIdInput, setRecallBotIdInput] = useState('');
   const [recallMeetingUrl, setRecallMeetingUrl] = useState('');
   const [livePerson1, setLivePerson1] = useState('');
   const [livePerson2, setLivePerson2] = useState('');
@@ -288,7 +289,42 @@ export default function App() {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
+  const fetchRecallTranscript = async (botId: string) => {
+    try {
+      const response = await fetch(`/api/recall/bot/${botId}/transcript`);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        const segments: TranscriptSegment[] = data.map((item: any, i: number) => ({
+          id: i,
+          start: item.start_time,
+          end: item.end_time,
+          speaker: item.speaker || 'Unknown',
+          text: item.text
+        }));
+        setSpikedTranscript(segments);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Fetch Error:", error);
+      return false;
+    }
+  };
+
   const loadSpikedTranscript = async () => {
+    if (recallBotIdInput) {
+      setIsSpikedLoading(true);
+      setSpikedConnectionStatus('connecting');
+      const success = await fetchRecallTranscript(recallBotIdInput);
+      if (success) {
+        setRecallBotId(recallBotIdInput);
+        setSpikedConnectionStatus('connected');
+      } else {
+        setSpikedConnectionStatus('error');
+      }
+      setIsSpikedLoading(false);
+      return;
+    }
     if (recallMeetingUrl) {
       // Real Recall.ai Integration
       setIsSpikedLoading(true);
@@ -303,6 +339,8 @@ export default function App() {
         if (data.id) {
           setRecallBotId(data.id);
           setSpikedConnectionStatus('connected');
+          // Initial fetch
+          await fetchRecallTranscript(data.id);
         } else {
           setSpikedConnectionStatus('error');
         }
@@ -382,26 +420,9 @@ export default function App() {
   useEffect(() => {
     if (!recallBotId || inputMode !== 'spiked') return;
 
-    const pollTranscript = async () => {
-      try {
-        const response = await fetch(`/api/recall/bot/${recallBotId}/transcript`);
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          const segments: TranscriptSegment[] = data.map((item: any, i: number) => ({
-            id: i,
-            start: item.start_time,
-            end: item.end_time,
-            speaker: item.speaker || 'Unknown',
-            text: item.text
-          }));
-          setSpikedTranscript(segments);
-        }
-      } catch (error) {
-        console.error("Polling Error:", error);
-      }
-    };
-
-    const interval = setInterval(pollTranscript, 5000);
+    const interval = setInterval(() => {
+      fetchRecallTranscript(recallBotId);
+    }, 5000);
     return () => clearInterval(interval);
   }, [recallBotId, inputMode]);
 
@@ -1128,23 +1149,52 @@ export default function App() {
                             </p>
                           </div>
                           <div className="space-y-4 w-full max-w-sm mx-auto">
-                            <div className="space-y-2">
-                              <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 block text-left ml-1">Meeting URL (Google Meet, Zoom, Teams)</label>
-                              <input 
-                                type="text"
-                                value={recallMeetingUrl}
-                                onChange={(e) => setRecallMeetingUrl(e.target.value)}
-                                placeholder="https://meet.google.com/abc-defg-hij"
-                                className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-black/5 transition-all shadow-sm"
-                              />
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 block text-left ml-1">Meeting URL (Google Meet, Zoom, Teams)</label>
+                                <input 
+                                  type="text"
+                                  value={recallMeetingUrl}
+                                  onChange={(e) => {
+                                    setRecallMeetingUrl(e.target.value);
+                                    if (e.target.value) setRecallBotIdInput('');
+                                  }}
+                                  placeholder="https://meet.google.com/abc-defg-hij"
+                                  className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-black/5 transition-all shadow-sm"
+                                />
+                              </div>
+                              
+                              <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                  <div className="w-full border-t border-black/5"></div>
+                                </div>
+                                <div className="relative flex justify-center text-[8px] uppercase font-bold tracking-widest">
+                                  <span className="bg-[#fdfdfd] px-2 text-black/20">OR</span>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 block text-left ml-1">Bot ID (Recall.ai)</label>
+                                <input 
+                                  type="text"
+                                  value={recallBotIdInput}
+                                  onChange={(e) => {
+                                    setRecallBotIdInput(e.target.value);
+                                    if (e.target.value) setRecallMeetingUrl('');
+                                  }}
+                                  placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000"
+                                  className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-black/5 transition-all shadow-sm"
+                                />
+                              </div>
                             </div>
+                            
                             <div className="flex flex-col items-center gap-4">
                               <button 
                                 onClick={loadSpikedTranscript}
-                                disabled={!recallMeetingUrl && spikedConnectionStatus === 'idle'}
+                                disabled={!recallMeetingUrl && !recallBotIdInput && spikedConnectionStatus === 'idle'}
                                 className="w-full bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                {recallMeetingUrl ? "Join & Sync Meeting" : "Connect & Transfer"}
+                                {recallBotIdInput ? "Fetch by Bot ID" : recallMeetingUrl ? "Join & Sync Meeting" : "Connect & Transfer"}
                               </button>
                               {spikedConnectionStatus !== 'idle' && (
                                 <div className="flex items-center gap-2">
