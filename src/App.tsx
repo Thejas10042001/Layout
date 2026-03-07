@@ -340,6 +340,14 @@ export default function App() {
       return;
     }
     if (recallMeetingUrl) {
+      // Validate URL
+      const meetingUrlRegex = /^(https?:\/\/)?([\w.-]+\.)?([\w.-]+)\.[\w.-]+(\/.*)?$/;
+      if (!meetingUrlRegex.test(recallMeetingUrl)) {
+        setSpikedConnectionStatus('error');
+        alert("Please enter a valid meeting URL (Zoom, Google Meet, Microsoft Teams, etc.)");
+        return;
+      }
+
       // Real Recall.ai Integration
       setIsSpikedLoading(true);
       setSpikedConnectionStatus('connecting');
@@ -354,17 +362,26 @@ export default function App() {
           }),
         });
         const data = await response.json();
-        if (data.id) {
+        if (response.ok && data.id) {
           setRecallBotId(data.id);
           setSpikedConnectionStatus('connected');
           // Initial fetch
           await fetchRecallTranscript(data.id);
         } else {
+          console.error("Recall Join Error:", data);
           setSpikedConnectionStatus('error');
+          if (data.error) {
+            alert(`Bot Join Failed: ${data.error}`);
+          } else if (Array.isArray(data.meeting_url)) {
+            alert(`Bot Join Failed: ${data.meeting_url[0]}`);
+          } else {
+            alert("Bot failed to join the meeting. Please check the meeting URL and your API key.");
+          }
         }
       } catch (error) {
         console.error("Recall Bot Error:", error);
         setSpikedConnectionStatus('error');
+        alert("An unexpected error occurred while joining the bot.");
       } finally {
         setIsSpikedLoading(false);
       }

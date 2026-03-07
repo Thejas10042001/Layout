@@ -34,8 +34,7 @@ async function startServer() {
         },
         body: JSON.stringify({
           meeting_url,
-          bot_name: "Spiked AI Cloud Recommendation",
-          bot_avatar_url: "https://ais-dev-o6blkwsdjnyddq7wjq44ut-7061009831.asia-east1.run.app/spiked-logo.png", // Assuming logo is available or use a placeholder
+          bot_name: bot_name || "Spiked AI Architect",
           transcription_options: {
             provider: "assemblyai",
           },
@@ -43,6 +42,9 @@ async function startServer() {
       });
 
       const data = await response.json();
+      if (!response.ok) {
+        console.error("Recall API Error Response:", data);
+      }
       res.status(response.status).json(data);
     } catch (error) {
       console.error("Recall API Error:", error);
