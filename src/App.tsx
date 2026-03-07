@@ -262,7 +262,6 @@ export default function App() {
   const [spikedConnectionStatus, setSpikedConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [spikedTranscript, setSpikedTranscript] = useState<TranscriptSegment[]>([]);
   const [recallBotId, setRecallBotId] = useState<string | null>(null);
-  const [recallBotIdInput, setRecallBotIdInput] = useState('');
   const [recallMeetingUrl, setRecallMeetingUrl] = useState('');
   const [isBotModalOpen, setIsBotModalOpen] = useState(false);
   const [speakerRoles, setSpeakerRoles] = useState<Record<string, 'User' | 'Client'>>({});
@@ -326,19 +325,6 @@ export default function App() {
   };
 
   const loadSpikedTranscript = async () => {
-    if (recallBotIdInput) {
-      setIsSpikedLoading(true);
-      setSpikedConnectionStatus('connecting');
-      const success = await fetchRecallTranscript(recallBotIdInput);
-      if (success) {
-        setRecallBotId(recallBotIdInput);
-        setSpikedConnectionStatus('connected');
-      } else {
-        setSpikedConnectionStatus('error');
-      }
-      setIsSpikedLoading(false);
-      return;
-    }
     if (recallMeetingUrl) {
       // Validate URL
       const meetingUrlRegex = /^(https?:\/\/)?([\w.-]+\.)?([\w.-]+)\.[\w.-]+(\/.*)?$/;
@@ -370,13 +356,19 @@ export default function App() {
         } else {
           console.error("Recall Join Error:", data);
           setSpikedConnectionStatus('error');
+          
+          let errorMessage = "Bot failed to join the meeting.";
           if (data.error) {
-            alert(`Bot Join Failed: ${data.error}`);
+            errorMessage = data.error;
+          } else if (data.detail) {
+            errorMessage = data.detail;
+          } else if (data.code === 'authentication_failed') {
+            errorMessage = "Authentication Failed: Your Recall.ai API key was rejected. Please verify it in the Secrets panel.";
           } else if (Array.isArray(data.meeting_url)) {
-            alert(`Bot Join Failed: ${data.meeting_url[0]}`);
-          } else {
-            alert("Bot failed to join the meeting. Please check the meeting URL and your API key.");
+            errorMessage = `Invalid Meeting URL: ${data.meeting_url[0]}`;
           }
+          
+          alert(`Bot Join Failed: ${errorMessage}`);
         }
       } catch (error) {
         console.error("Recall Bot Error:", error);
@@ -1359,47 +1351,10 @@ export default function App() {
                               Securely bridge your meeting intelligence and transfer transcripts for cognitive analysis.
                             </p>
                           </div>
-                          <div className="space-y-4 w-full max-w-sm mx-auto">
-                            <div className="space-y-2">
-                              <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 block text-left ml-1">Bot ID (Recall.ai)</label>
-                              <input 
-                                type="text"
-                                value={recallBotIdInput}
-                                onChange={(e) => setRecallBotIdInput(e.target.value)}
-                                placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000"
-                                className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-black/5 transition-all shadow-sm"
-                              />
-                            </div>
-                            
-                            <div className="flex flex-col items-center gap-4">
-                              <button 
-                                onClick={loadSpikedTranscript}
-                                disabled={!recallBotIdInput && spikedConnectionStatus === 'idle'}
-                                className="w-full bg-black text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                Connect & Transfer
-                              </button>
-                              {spikedConnectionStatus !== 'idle' && (
-                                <div className="flex items-center gap-2">
-                                  <div className={cn(
-                                    "w-1.5 h-1.5 rounded-full",
-                                    spikedConnectionStatus === 'connecting' && "bg-amber-400 animate-pulse",
-                                    spikedConnectionStatus === 'connected' && "bg-emerald-500",
-                                    spikedConnectionStatus === 'error' && "bg-red-500"
-                                  )} />
-                                  <span className={cn(
-                                    "text-[9px] font-bold uppercase tracking-widest",
-                                    spikedConnectionStatus === 'connecting' && "text-amber-600",
-                                    spikedConnectionStatus === 'connected' && "text-emerald-600",
-                                    spikedConnectionStatus === 'error' && "text-red-600"
-                                  )}>
-                                    {spikedConnectionStatus === 'connecting' && "Connecting..."}
-                                    {spikedConnectionStatus === 'connected' && "Connected"}
-                                    {spikedConnectionStatus === 'error' && "Error: Connection Failed"}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
+                          <div className="p-6 bg-black/5 rounded-2xl border border-black/5">
+                            <p className="text-[10px] text-black/60 font-medium leading-relaxed">
+                              Use the <span className="font-black text-red-600">"Join Bot to Meeting"</span> button above to deploy a new bot, or connect to an existing session.
+                            </p>
                           </div>
                         </>
                       )}
