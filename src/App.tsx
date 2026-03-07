@@ -264,6 +264,7 @@ export default function App() {
   const [recallBotId, setRecallBotId] = useState<string | null>(null);
   const [recallBotIdInput, setRecallBotIdInput] = useState('');
   const [recallMeetingUrl, setRecallMeetingUrl] = useState('');
+  const [isBotModalOpen, setIsBotModalOpen] = useState(false);
   const [speakerRoles, setSpeakerRoles] = useState<Record<string, 'User' | 'Client'>>({});
   const [selectedSegments, setSelectedSegments] = useState<Set<number>>(new Set());
   const [livePerson1, setLivePerson1] = useState('');
@@ -739,8 +740,12 @@ export default function App() {
       finalTranscript = transcript;
     } else if (inputMode === 'live') {
       finalTranscript = `Customer: ${livePerson1}\nArchitect: ${livePerson2}`;
-    } else if (inputMode === 'spiked') {
-      finalTranscript = spikedTranscript.map(s => `${s.speaker || 'Unknown'}: ${s.text}`).join('\n');
+    } else if (inputMode === 'spiked' || inputMode === 'bot') {
+      const selected = spikedTranscript.filter(s => selectedSegments.size === 0 || selectedSegments.has(s.id));
+      finalTranscript = selected.map(s => {
+        const role = speakerRoles[s.speaker || 'Unknown'] || 'Client';
+        return `[${role}] ${s.speaker || 'Unknown'}: ${s.text}`;
+      }).join('\n');
     }
 
     if (!finalTranscript.trim()) return;
@@ -953,7 +958,16 @@ export default function App() {
                       Connect with Spiked
                     </button>
                   </div>
-                  <button onClick={loadSample} className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Sample</button>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => setIsBotModalOpen(true)}
+                      className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-500/20 active:scale-95 flex items-center gap-2"
+                    >
+                      <Target className="w-3 h-3" />
+                      Join Bot to Meeting
+                    </button>
+                    <button onClick={loadSample} className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black">Sample</button>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 text-black/40 mt-2">
@@ -1234,7 +1248,7 @@ export default function App() {
                                     spikedConnectionStatus === 'error' && "text-red-600"
                                   )}>
                                     {spikedConnectionStatus === 'connecting' && "Connecting..."}
-                                    {spikedConnectionStatus === 'connected' && "Bot has joined the meeting."}
+                                    {spikedConnectionStatus === 'connected' && "Spiked AI Cloud bot has joined the meeting."}
                                     {spikedConnectionStatus === 'error' && "Bot failed to join the meeting."}
                                   </span>
                                 </div>
@@ -1889,7 +1903,70 @@ export default function App() {
           </div>
         </div>
       )}
-    </main>
+        {/* Bot Join Modal */}
+        {isBotModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6 border border-black/5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center shadow-xl shadow-black/10">
+                    <Target className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest">Join Bot to Meeting</h3>
+                    <p className="text-[10px] text-black/40 font-bold uppercase tracking-widest">Spiked AI Cloud Deployment</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsBotModalOpen(false)}
+                  className="p-2 hover:bg-black/5 rounded-full transition-colors"
+                >
+                  <Square className="w-4 h-4 text-black/20" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-black/40 block ml-1">Meeting URL (Zoom, Meet, Teams)</label>
+                  <input 
+                    type="text"
+                    value={recallMeetingUrl}
+                    onChange={(e) => setRecallMeetingUrl(e.target.value)}
+                    placeholder="https://meet.google.com/abc-defg-hij"
+                    className="w-full bg-black/5 border border-transparent rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-black/10 transition-all"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="p-4 bg-red-50 rounded-2xl border border-red-100 flex gap-3">
+                  <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center shrink-0">
+                    <span className="text-white font-black text-xs">!</span>
+                  </div>
+                  <p className="text-[10px] text-red-700/70 font-medium leading-relaxed">
+                    Spiked AI Cloud will join as a participant to capture real-time intelligence. Ensure the host admits the bot.
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => {
+                    setInputMode('bot');
+                    setIsBotModalOpen(false);
+                    loadSpikedTranscript();
+                  }}
+                  disabled={!recallMeetingUrl.trim()}
+                  className="w-full bg-black text-white py-4 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-black/90 transition-all shadow-xl shadow-black/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Deploy Spiked Bot
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </main>
       {/* Diagram Modal removed */}
     </div>
   );
